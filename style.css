@@ -1,0 +1,394 @@
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg-app: #f1f5f9;
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --radius-pro: 20px;
+  --shadow-sm: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 25px -5px rgb(0 0 0 / 0.1);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  font-family: 'Kanit', sans-serif;
+  background-color: var(--bg-app);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.1) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(37, 99, 235, 0.05) 0px, transparent 50%);
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+.app-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* --- Navigation --- */
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  margin-bottom: 1rem;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.system-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  padding: 6px 14px;
+  border-radius: 99px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  background: #f59e0b; /* ค่าเริ่มต้นสีเหลือง */
+  border-radius: 50%;
+}
+
+.pulse {
+  animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+/* --- Hero Section --- */
+.main-header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+  color: white;
+  padding: 2.5rem 2rem;
+  border-radius: var(--radius-pro);
+  margin-bottom: 2rem;
+  box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.main-header::after {
+  content: "";
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+}
+
+.main-header h1 { margin: 0; font-size: 2rem; font-weight: 700; }
+.main-header p { margin: 8px 0 0; opacity: 0.9; font-weight: 300; }
+
+/* --- Form Layout --- */
+.modern-form {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.form-section {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  padding: 2rem;
+  border-radius: var(--radius-pro);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  z-index: 1; /* แก้บั๊ก Dropdown โดนบัง */
+}
+
+/* ดัน Section นี้ขึ้นมาหน้าสุดเมื่อเมาส์ชี้หรือกำลังใช้งาน */
+.form-section:hover,
+.form-section:focus-within {
+  z-index: 99; 
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding-bottom: 10px;
+}
+
+.icon-box {
+  background: var(--primary);
+  color: white;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.section-header h3 { margin: 0; font-size: 1.25rem; color: var(--text-main); font-weight: 600;}
+
+/* --- Inputs --- */
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.full-width {
+  grid-column: 1 / -1;
+}
+.mt-10 { margin-top: 10px; }
+
+.input-group label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-group input, 
+.input-group textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 1rem;
+  transition: var(--transition);
+  background: white;
+  outline: none;
+}
+
+.input-group input:focus, 
+.input-group textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.readonly-input { background: #f8fafc !important; color: #64748b; border-style: dashed !important; cursor: not-allowed; }
+.highlight-input { background: #fefce8 !important; border-color: #fde047 !important; font-weight: 700; color: #854d0e; }
+
+/* --- Radio Group --- */
+.radio-group {
+  display: flex;
+  gap: 10px;
+}
+
+.radio-group label {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-weight: 500;
+}
+
+.radio-group input[type="radio"] { display: none; }
+.radio-group input[type="radio"]:checked + label {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
+}
+
+/* --- Buttons --- */
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-primary {
+  flex: 2;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 1.2rem;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: var(--transition);
+}
+
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.4); }
+.btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.btn-outline {
+  flex: 1;
+  background: white;
+  border: 2px solid #e2e8f0;
+  padding: 1.2rem;
+  border-radius: 16px;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-outline:hover { background: #f8fafc; border-color: #cbd5e1; color: var(--text-main); }
+
+/* =========================================
+   แก้บั๊ก Z-Index ขั้นเด็ดขาด (ร่วมกับ JS)
+   ========================================= */
+.form-section {
+  position: relative;
+  z-index: 1;
+  transition: z-index 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* คลาสที่จะถูกเติมด้วย JS ตอนกดเปิด Dropdown */
+.form-section.is-active-section {
+  z-index: 9999 !important;
+  box-shadow: 0 20px 40px -5px rgba(37, 99, 235, 0.15); /* เพิ่มเงาให้ดูเด่นขึ้นตอนพิมพ์ */
+}
+
+/* =========================================
+   Choices.js Custom Theme (Perfect & Bug-Free)
+   ========================================= */
+.choices {
+  margin-bottom: 0;
+  position: relative;
+}
+
+/* กล่องหลักตอนยังไม่กด */
+.choices[data-type*="select-one"] .choices__inner {
+  background-color: #ffffff !important;
+  border: 2px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 10px 16px !important;
+  min-height: 48px !important;
+  display: flex;
+  align-items: center;
+  font-family: 'Kanit', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+/* ลูกศรแบบ Custom (ขยับลงมาให้สมดุล) */
+.choices[data-type*="select-one"]::after {
+  border: none !important;
+  width: 18px; height: 18px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-size: cover;
+  right: 14px; top: 50%; 
+  transform: translateY(-50%);
+  margin-top: 0;
+  transition: transform 0.3s ease;
+}
+
+/* สถานะ: เมื่อถูกคลิก / เปิด Dropdown */
+.choices.is-open .choices__inner {
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1) !important;
+  border-bottom-left-radius: 0 !important;  /* ให้มุมล่างเหลี่ยม เพื่อเชื่อมกับกล่องรายการ */
+  border-bottom-right-radius: 0 !important;
+  border-bottom-color: transparent !important; /* ลบเส้นคั่นตรงกลาง */
+}
+
+/* หมุนลูกศรขึ้นและเปลี่ยนเป็นสีน้ำเงิน */
+.choices[data-type*="select-one"].is-open::after {
+  transform: translateY(-50%) rotate(180deg);
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+/* กล่องรายการ Dropdown ที่เด้งลงมา */
+.choices__list--dropdown {
+  border: 2px solid var(--primary) !important;
+  border-top: none !important;
+  border-bottom-left-radius: 14px !important;
+  border-bottom-right-radius: 14px !important;
+  box-shadow: 0 14px 25px -5px rgba(37, 99, 235, 0.15) !important;
+  margin-top: 0 !important; /* ติดขอบกล่องบนพอดี */
+  padding: 6px !important;
+  z-index: 9999 !important;
+  background: #ffffff;
+}
+
+/* ช่องพิมพ์ค้นหาด้านใน */
+.choices__input--cloned {
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  padding: 10px 14px !important;
+  margin-bottom: 8px !important;
+  font-family: 'Kanit', sans-serif;
+  font-size: 0.95rem;
+  background-color: #f8fafc;
+  transition: all 0.2s ease;
+}
+.choices__input--cloned:focus {
+  border-color: var(--primary) !important;
+  background-color: #ffffff;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+/* รายการตัวเลือกแต่ละบรรทัด */
+.choices__list--dropdown .choices__item {
+  font-family: 'Kanit', sans-serif;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  padding: 10px 14px !important;
+  transition: all 0.2s ease;
+  color: #334155;
+}
+
+/* ตอนเอาเมาส์ชี้ตัวเลือก */
+.choices__list--dropdown .choices__item--selectable.is-highlighted {
+  background-color: #eff6ff !important; /* พื้นหลังสีฟ้าอ่อนๆ */
+  color: var(--primary-hover) !important;
+  font-weight: 500;
+}
+
+/* สถานะ Disabled (ปิดใช้งาน) */
+.is-disabled .choices__inner { 
+  background-color: #f1f5f9 !important; 
+  opacity: 1 !important;
+  color: #94a3b8 !important;
+  border-color: #e2e8f0 !important;
+  cursor: not-allowed;
+}

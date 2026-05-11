@@ -146,19 +146,7 @@ body {
   z-index: 1;
 }
 
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0 0 12px;
-  background: #fcfcfc;
-  color: var(--primary);
-  font-size: 0.82rem;
-  font-weight: 500;
-  border: 1px solid #ffffff;
-  padding: 5px 13px;
-  border-radius: 999px;
-}
+
 
 .hero h1 {
   margin: 0;
@@ -170,7 +158,7 @@ body {
 
 .hero p {
   margin: 10px 0 0;
-  color: #000000;
+  color: #ffffff;
   font-weight: 400;
   font-size: 1rem;
 }

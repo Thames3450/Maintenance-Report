@@ -2,198 +2,377 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Smart Maintenance | Pro</title>
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MPR Smart Maintenance | Repair Report Pro</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  
+
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
   <link rel="stylesheet" href="style.css" />
 </head>
-<body>
 
-  <div class="app-container">
+<body>
+  <div class="app-shell">
     <nav class="top-nav">
-      <div class="nav-brand">
-        <i data-lucide="settings-2"></i>
-        <span>Smart<strong>Fix</strong></span>
+      <div class="brand">
+        <div class="brand-icon">
+          <i data-lucide="cpu"></i>
+        </div>
+        <div>
+          <div class="brand-title">MPR Smart Maintenance</div>
+          <div class="brand-subtitle">Repair Report Pro</div>
+        </div>
       </div>
-      <div class="system-indicator">
-        <div class="dot pulse"></div>
+
+      <div class="system-status">
+        <span class="status-dot" id="statusDot"></span>
         <span id="systemStatus">กำลังเตรียมระบบ...</span>
       </div>
     </nav>
 
-    <header class="main-header">
-      <div class="header-content">
-        <h1>บันทึกงานซ่อมบำรุง</h1>
-        <p>บันทึกข้อมูลการซ่อมเครื่องจักรให้เป็นระบบ Digital 100%</p>
+    <header class="hero">
+      <div class="hero-content">
+        <p class="eyebrow">
+          <i data-lucide="shield-check"></i>
+          Technician Portal
+        </p>
+        <h1>บันทึกรายงานซ่อมบำรุง</h1>
+        <p>จัดการงานซ่อม แนบรูป และติดตามประวัติการซ่อมทั้งหมดจากฐานข้อมูลเดียวกัน</p>
       </div>
     </header>
 
-    <main class="content-layout">
-      <form id="repairForm" class="modern-form" novalidate>
-        
-        <div class="form-section">
-          <div class="section-header">
-            <div class="icon-box"><i data-lucide="user"></i></div>
-            <h3>1. ข้อมูลพื้นฐานการปฏิบัติงาน</h3>
-          </div>
-          <div class="grid-container">
-            <div class="input-group">
-              <label><i data-lucide="calendar"></i> วันที่ซ่อม</label>
-              <input type="date" id="repairDate" name="repairDate" required />
-            </div>
-            <div class="input-group">
-              <label><i data-lucide="clock"></i> กะการทำงาน</label>
-              <select id="shift" name="shift" required>
-                <option value="">-- เลือกกะ --</option>
-                <option value="A">กะ A (เช้า)</option>
-                <option value="B">กะ B (ดึก)</option>
-                <option value="O">กะ O (พิเศษ)</option>
-              </select>
-            </div>
-            <div class="input-group">
-              <label><i data-lucide="fingerprint"></i> รหัสพนักงาน</label>
-              <input type="text" id="technicianId" placeholder="พิมพ์รหัส เช่น 680470" required />
-            </div>
-            <div class="input-group">
-              <label><i data-lucide="user-check"></i> ชื่อช่างผู้รับผิดชอบ</label>
-              <input type="text" id="technicianName" class="readonly-input" readonly placeholder="ระบบจะดึงชื่ออัตโนมัติ" />
-            </div>
-          </div>
-        </div>
+    <main class="main-layout">
+      <section class="menu-tabs">
+        <button class="tab-btn active" type="button" data-tab="reportTab">
+          <i data-lucide="file-edit"></i>
+          <span>กรอกรายงานซ่อม</span>
+        </button>
 
-        <div class="form-section">
-          <div class="section-header">
-            <div class="icon-box"><i data-lucide="cpu"></i></div>
-            <h3>2. รายละเอียดเครื่องจักร</h3>
+        <button class="tab-btn" type="button" data-tab="historyTab">
+          <i data-lucide="history"></i>
+          <span>ประวัติการกรอก</span>
+        </button>
+      </section>
+
+      <!-- ================= Repair Report ================= -->
+      <section id="reportTab" class="tab-panel active">
+        <form id="repairForm" class="form-card glass-panel">
+          <div class="section-head">
+            <div class="section-icon">
+              <i data-lucide="user-square"></i>
+            </div>
+            <div>
+              <h2>1. ข้อมูลช่างและกะงาน</h2>
+              <p>ระบบจะดึงชื่อช่างจากรหัสพนักงานอัตโนมัติ</p>
+            </div>
           </div>
-          <div class="grid-container">
-            <div class="input-group">
-              <label>ชื่อเครื่องจักร</label>
-              <select id="machine" name="machine" required>
-                <option value="">-- โหลดรายการเครื่องจักร --</option>
+
+          <div class="grid">
+            <div class="field">
+              <label>วันที่ซ่อม <span>*</span></label>
+              <input type="date" id="repairDate" required />
+            </div>
+
+            <div class="field">
+              <label>กะ <span>*</span></label>
+              <select id="shift" required>
+                <option value="">-- เลือกกะ --</option>
+                <option value="A">กะ A</option>
+                <option value="B">กะ B</option>
+                <option value="O">กะ O</option>
               </select>
             </div>
-            <div class="input-group">
-              <label>หมายเลขเครื่อง</label>
-              <select id="machineNo" name="machineNo" required disabled>
+
+            <div class="field">
+              <label>รหัสพนักงาน <span>*</span></label>
+              <input type="text" id="technicianCode" placeholder="เช่น 680470" required />
+            </div>
+
+            <div class="field">
+              <label>ชื่อช่าง</label>
+              <input type="text" id="technicianName" class="readonly" readonly placeholder="ดึงชื่ออัตโนมัติ" />
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+
+          <div class="section-head">
+            <div class="section-icon">
+              <i data-lucide="settings-2"></i>
+            </div>
+            <div>
+              <h2>2. ข้อมูลเครื่องจักร</h2>
+              <p>เลือกเครื่องจักร หมายเลขเครื่อง และจุดที่เสียจาก Master Data</p>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="field">
+              <label>ชื่อเครื่องจักร <span>*</span></label>
+              <select id="machine" required>
+                <option value="">-- กำลังโหลดเครื่องจักร --</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>หมายเลขเครื่อง <span>*</span></label>
+              <select id="machineNo" required disabled>
                 <option value="">-- เลือกเครื่องจักรก่อน --</option>
               </select>
             </div>
-            <div class="input-group">
-              <label>ไลน์ผลิต (Line)</label>
-              <input type="text" id="line" class="readonly-input" readonly placeholder="ดึงข้อมูลอัตโนมัติ" />
+
+            <div class="field">
+              <label>ไลน์ผลิต</label>
+              <input type="text" id="productionLine" class="readonly" readonly placeholder="ดึงอัตโนมัติ" />
             </div>
-            <div class="input-group">
-              <label>จุดที่เสีย (Area Point)</label>
-              <select id="areaPoint" name="areaPoint" required disabled>
+
+            <div class="field">
+              <label>จุดที่เสีย <span>*</span></label>
+              <select id="areaPoint" required disabled>
                 <option value="">-- เลือกหมายเลขเครื่องก่อน --</option>
               </select>
             </div>
           </div>
-        </div>
 
-        <div class="form-section full-width">
-          <div class="section-header">
-            <div class="icon-box"><i data-lucide="wrench"></i></div>
-            <h3>3. การวิเคราะห์และการแก้ไข</h3>
+          <div class="section-divider"></div>
+
+          <div class="section-head">
+            <div class="section-icon">
+              <i data-lucide="activity"></i>
+            </div>
+            <div>
+              <h2>3. วิเคราะห์ปัญหาและการแก้ไข</h2>
+              <p>ข้อมูลส่วนนี้ใช้ต่อยอดทำ AI Report, Dashboard และ PM Plan</p>
+            </div>
           </div>
-          <div class="grid-container">
-            <div class="input-group">
-              <label>อาการที่พบ</label>
-              <select id="problem" name="problem" required>
-                 <option value="">-- โหลดรายการอาการ --</option>
+
+          <div class="grid">
+            <div class="field">
+              <label>อาการที่เสีย <span>*</span></label>
+              <select id="problem" required>
+                <option value="">-- กำลังโหลดอาการเสีย --</option>
               </select>
             </div>
-            <div class="input-group">
+
+            <div class="field">
               <label>ประเภทงานเสีย</label>
-              <input type="text" id="breakdownType" class="readonly-input" readonly placeholder="ดึงข้อมูลอัตโนมัติ" />
+              <input type="text" id="breakdownType" class="readonly" readonly placeholder="ดึงอัตโนมัติ" />
             </div>
-            <div class="input-group">
-              <label>สาเหตุที่พบ</label>
-              <select id="cause" name="cause" required>
-                <option value="">-- โหลดรายการสาเหตุ --</option>
-              </select>
-            </div>
-            <div class="input-group">
-              <label>การแก้ไข</label>
-              <select id="action" name="action" required>
-                <option value="">-- โหลดรายการแก้ไข --</option>
-              </select>
-            </div>
-            <div class="input-group full-width mt-10">
-              <label>ระดับความรุนแรง</label>
-              <div class="radio-group">
-                <input type="radio" name="severity" value="เล็กน้อย" id="sev1"> <label for="sev1">เล็กน้อย</label>
-                <input type="radio" name="severity" value="ปานกลาง" id="sev2"> <label for="sev2">ปานกลาง</label>
-                <input type="radio" name="severity" value="รุนแรง" id="sev3"> <label for="sev3">รุนแรง</label>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div class="form-section">
-          <div class="section-header">
-            <div class="icon-box"><i data-lucide="timer"></i></div>
-            <h3>4. สรุปเวลาและผลการซ่อม</h3>
+            <div class="field">
+              <label>สาเหตุ <span>*</span></label>
+              <select id="cause" required>
+                <option value="">-- กำลังโหลดสาเหตุ --</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label>การแก้ไข <span>*</span></label>
+              <select id="action" required>
+                <option value="">-- กำลังโหลดการแก้ไข --</option>
+              </select>
+            </div>
           </div>
-          <div class="grid-container">
-            <div class="input-group">
+
+          <div class="field full mt-2">
+            <label>ระดับความรุนแรง <span>*</span></label>
+            <div class="severity-group">
+              <label class="severity-label">
+                <input type="radio" name="severity" value="เล็กน้อย">
+                <span>เล็กน้อย</span>
+              </label>
+
+              <label class="severity-label">
+                <input type="radio" name="severity" value="ปานกลาง">
+                <span>ปานกลาง</span>
+              </label>
+
+              <label class="severity-label">
+                <input type="radio" name="severity" value="รุนแรง">
+                <span>รุนแรง</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="section-divider"></div>
+
+          <div class="section-head">
+            <div class="section-icon">
+              <i data-lucide="clock"></i>
+            </div>
+            <div>
+              <h2>4. เวลา อะไหล่ และผลหลังซ่อม</h2>
+              <p>ระบบจะคำนวณ Downtime จากเวลาเริ่มและเวลาจบ</p>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="field">
               <label>เวลาเริ่มซ่อม</label>
               <input type="time" id="startRepair" />
             </div>
-            <div class="input-group">
+
+            <div class="field">
               <label>เวลาซ่อมเสร็จ</label>
               <input type="time" id="endRepair" />
             </div>
-            <div class="input-group">
-              <label>Downtime (นาที)</label>
-              <input type="number" id="lossTime" class="highlight-input" placeholder="คำนวณอัตโนมัติ" />
+
+            <div class="field">
+              <label>Downtime (นาที) <span>*</span></label>
+              <input type="number" id="lossTime" min="0" placeholder="คำนวณอัตโนมัติ" required />
             </div>
-            <div class="input-group">
-              <label>สถานะหลังซ่อม</label>
-              <select id="result" name="result" required>
-                <option value="">-- เลือกสถานะ --</option>
-                <option value="ใช้งานได้ปกติ">✅ ใช้งานได้ปกติ</option>
-                <option value="ใช้งานได้ชั่วคราว">⚠️ ใช้งานได้ชั่วคราว</option>
-                <option value="ต้องติดตามต่อ">👀 ต้องติดตามต่อ</option>
-                <option value="รอซ่อมเพิ่มเติม">⏳ รอซ่อมเพิ่มเติม</option>
+
+            <div class="field">
+              <label>ผลหลังซ่อม <span>*</span></label>
+              <select id="repairResult" required>
+                <option value="">-- เลือกผลหลังซ่อม --</option>
+                <option value="ใช้งานได้ปกติ">ใช้งานได้ปกติ</option>
+                <option value="ใช้งานได้ชั่วคราว">ใช้งานได้ชั่วคราว</option>
+                <option value="ต้องติดตามต่อ">ต้องติดตามต่อ</option>
+                <option value="รอซ่อมเพิ่มเติม">รอซ่อมเพิ่มเติม</option>
               </select>
             </div>
-            <div class="input-group full-width mt-10">
-              <label>อะไหล่ที่ใช้ (ถ้ามี)</label>
+
+            <div class="field">
+              <label>อะไหล่ที่ใช้</label>
               <input type="text" id="sparePart" placeholder="เช่น Heater / Sensor / O-Ring" />
             </div>
-            <div class="input-group full-width mt-10">
-              <label>หมายเหตุเพิ่มเติม</label>
-              <textarea id="remark" rows="3" placeholder="ระบุรายละเอียดเพิ่มเติมที่ต้องการบันทึก..."></textarea>
+
+            <div class="field">
+              <label>จำนวนอะไหล่</label>
+              <input type="number" id="sparePartQty" min="0" placeholder="0" />
+            </div>
+
+            <div class="field full">
+              <label>หมายเหตุ</label>
+              <textarea id="remark" rows="3" placeholder="เช่น ใช้งานชั่วคราวก่อน / รออะไหล่ / ต้องติดตามอาการ"></textarea>
             </div>
           </div>
-        </div>
 
-        <div class="form-actions">
-          <button type="button" id="resetBtn" class="btn-outline">ล้างฟอร์ม</button>
-          <button type="submit" id="submitBtn" class="btn-primary">
-            <span>ส่งข้อมูลบันทึกงาน</span>
-            <i data-lucide="send"></i>
-          </button>
+          <div class="section-divider"></div>
+
+          <div class="section-head">
+            <div class="section-icon">
+              <i data-lucide="camera"></i>
+            </div>
+            <div>
+              <h2>5. รูปภาพการซ่อม</h2>
+              <p>แนบได้ 1–5 รูป แนะนำ: ก่อนซ่อม / จุดที่เสีย / หลังซ่อม</p>
+            </div>
+          </div>
+
+          <div class="photo-rule">
+            <i data-lucide="info" class="rule-icon"></i>
+            <div>
+              <strong>ข้อกำหนด:</strong>
+              งานทั่วไปต้องแนบอย่างน้อย 1 รูป, ถ้า Downtime ≥ 60 นาที หรือใช้งานได้ชั่วคราว ต้องแนบอย่างน้อย 2 รูป
+            </div>
+          </div>
+
+          <div class="field full file-upload-wrapper">
+            <label class="file-upload-box">
+              <i data-lucide="upload-cloud"></i>
+              <span>คลิกเพื่ออัปโหลดรูปภาพ</span>
+              <input type="file" id="repairImages" accept="image/jpeg,image/png,image/webp" multiple hidden />
+            </label>
+          </div>
+
+          <div id="imagePreview" class="image-preview"></div>
+
+          <div class="actions">
+            <button type="button" class="btn ghost" id="resetBtn">
+              <i data-lucide="rotate-ccw"></i>
+              ล้างฟอร์ม
+            </button>
+
+            <button type="submit" class="btn primary" id="submitBtn">
+              <i data-lucide="send"></i>
+              บันทึกรายงานซ่อม
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- ================= History ================= -->
+      <section id="historyTab" class="tab-panel">
+        <div class="history-card glass-panel">
+          <div class="history-head">
+            <div>
+              <h2>ประวัติการกรอกรายงานทั้งหมด</h2>
+              <p>ค้นหาและดูรายละเอียดประวัติการซ่อมย้อนหลัง</p>
+            </div>
+
+            <button class="btn ghost icon-btn" id="refreshHistoryBtn" type="button">
+              <i data-lucide="refresh-cw"></i>
+              รีเฟรช
+            </button>
+          </div>
+
+         <div class="history-filter">
+  <div class="history-filter-grid">
+    <div class="search-wrapper">
+      <i data-lucide="search" class="search-icon"></i>
+      <input 
+        type="text" 
+        id="historySearch" 
+        placeholder="ค้นหา: เครื่องจักร / อาการ / จุดที่เสีย / ช่าง / หมายเหตุ..." 
+      />
+    </div>
+
+    <div class="date-filter-group">
+      <label>ตั้งแต่วันที่</label>
+      <input type="date" id="historyFromDate" />
+    </div>
+
+    <div class="date-filter-group">
+      <label>ถึงวันที่</label>
+      <input type="date" id="historyToDate" />
+    </div>
+
+    <button type="button" class="btn ghost history-clear-btn" id="clearHistoryFilterBtn">
+      ล้างตัวกรอง
+    </button>
+  </div>
+</div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่</th>
+                  <th>เครื่องจักร</th>
+                  <th>จุดที่เสีย</th>
+                  <th>อาการ</th>
+                  <th>Downtime</th>
+                  <th>ช่าง</th>
+                  <th>ผลหลังซ่อม</th>
+                  <th>รายละเอียด</th>
+                </tr>
+              </thead>
+
+              <tbody id="historyBody">
+                <tr>
+                  <td colspan="8" class="empty">กำลังโหลดข้อมูล...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="detailPanel" class="detail-panel hidden"></div>
         </div>
-      </form>
+      </section>
     </main>
   </div>
 
-  <script>
-    // Initialize Lucide Icons
-    lucide.createIcons();
-  </script>
+  <div id="toast" class="toast hidden"></div>
+
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,11 +1,17 @@
 const SUPABASE_URL = "https://crigkewtzvslkpmsufxk.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyaWdrZXd0enZzbGtwbXN1ZnhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MDc5OTQsImV4cCI6MjA5Mzk4Mzk5NH0.G13M84Qz7mjLXuCtdCHe07BpP7feeBwVD4c2K4czot4";
 
+
+
 if (!window.supabase) {
   alert("โหลด Supabase SDK ไม่สำเร็จ กรุณาตรวจสอบ Internet หรือ CDN");
 }
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const REPAIR_TABLE = "repair_logs";
+const REPAIR_IMAGE_TABLE = "repair_images";
+const REPAIR_IMAGE_BUCKET = "repair-images";
 
 const state = {
   technicians: [],
@@ -18,6 +24,8 @@ const state = {
   history: []
 };
 
+
+
 const choicesMap = {};
 const els = {};
 
@@ -29,6 +37,7 @@ async function init() {
   bindEvents();
   setDefaultDate();
   refreshIcons();
+  initDeleteFeatureStyles();
 
   await loadMasterData();
   await loadHistory();
@@ -119,13 +128,20 @@ els.clearHistoryFilterBtn?.addEventListener("click", () => {
 });
 
   els.historyBody?.addEventListener("click", event => {
-    const btn = event.target.closest(".image-count-btn[data-detail-id]");
-    if (!btn) return;
+    const detailBtn = event.target.closest(".image-count-btn[data-detail-id]");
+    if (detailBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      showDetail(detailBtn.dataset.detailId);
+      return;
+    }
 
-    event.preventDefault();
-    event.stopPropagation();
-
-    showDetail(btn.dataset.detailId);
+    const deleteBtn = event.target.closest(".delete-record-btn[data-delete-id]");
+    if (deleteBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteRepairRecord(deleteBtn.dataset.deleteId, deleteBtn.dataset.recordNo || "");
+    }
   });
 
   document.addEventListener("keydown", event => {
@@ -540,6 +556,9 @@ function renderImagePreview() {
   els.imagePreview.innerHTML = state.selectedImages.map((item, index) => {
     return `
       <div class="preview-card">
+        <button type="button" class="preview-delete-btn" data-remove-preview-index="${index}" aria-label="ลบรูปนี้">
+          ลบ
+        </button>
         <img src="${item.previewUrl}" alt="repair image preview">
         <select data-image-index="${index}">
           <option value="Before" ${item.imageType === "Before" ? "selected" : ""}>Before - ก่อนซ่อม</option>
@@ -560,6 +579,13 @@ function renderImagePreview() {
       }
     });
   });
+
+  els.imagePreview.querySelectorAll("[data-remove-preview-index]").forEach(button => {
+    button.addEventListener("click", event => {
+      const index = Number(event.currentTarget.dataset.removePreviewIndex);
+      removeSelectedImage(index);
+    });
+  });
 }
 
 function updateUploadBoxText() {
@@ -572,6 +598,33 @@ function updateUploadBoxText() {
   }
 
   labelText.textContent = `เลือกแล้ว ${state.selectedImages.length} รูป`;
+}
+
+function removeSelectedImage(index) {
+  if (!Number.isInteger(index) || !state.selectedImages[index]) return;
+
+  const removed = state.selectedImages.splice(index, 1)[0];
+
+  if (removed?.previewUrl) {
+    URL.revokeObjectURL(removed.previewUrl);
+  }
+
+  rebuildRepairImageInput();
+  renderImagePreview();
+  updateUploadBoxText();
+  renderImageRuleHint();
+}
+
+function rebuildRepairImageInput() {
+  if (!els.repairImages) return;
+
+  const dataTransfer = new DataTransfer();
+
+  state.selectedImages.forEach(item => {
+    if (item?.file) dataTransfer.items.add(item.file);
+  });
+
+  els.repairImages.files = dataTransfer.files;
 }
 
 function getRequiredImageCount() {
@@ -892,13 +945,24 @@ function renderHistory() {
         </td>
 
         <td data-label="รายละเอียด">
-          <button 
-            type="button" 
-            class="image-count-btn" 
-            data-detail-id="${row.id}"
-          >
-            ดูรายละเอียด · ${images.length} รูป
-          </button>
+          <div class="history-actions">
+            <button 
+              type="button" 
+              class="image-count-btn" 
+              data-detail-id="${row.id}"
+            >
+              ดูรายละเอียด · ${images.length} รูป
+            </button>
+
+            <button
+              type="button"
+              class="delete-record-btn"
+              data-delete-id="${row.id}"
+              data-record-no="${escapeHtml(row.record_no || "")}"
+            >
+              ลบ
+            </button>
+          </div>
         </td>
       </tr>
     `;
@@ -927,9 +991,15 @@ window.showDetail = function(id) {
           <p>${escapeHtml(row.record_no || "-")}</p>
         </div>
 
-        <button class="repair-modal-close" type="button" onclick="closeRepairModal()" aria-label="Close">
-          <i data-lucide="x"></i>
-        </button>
+        <div class="repair-modal-head-actions">
+          <button class="delete-record-btn modal-delete-record-btn" type="button" data-delete-record-id="${row.id}" data-record-no="${escapeHtml(row.record_no || "")}">
+            ลบรายการซ่อม
+          </button>
+
+          <button class="repair-modal-close" type="button" onclick="closeRepairModal()" aria-label="Close">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
       </div>
 
       <div class="repair-modal-body">
@@ -958,9 +1028,20 @@ window.showDetail = function(id) {
           ${
             images.length
               ? images.map(img => `
-                  <a href="${img.public_url}" target="_blank" rel="noopener">
-                    <img src="${img.public_url}" alt="${escapeHtml(img.image_type || "repair image")}">
-                  </a>
+                  <div class="repair-image-card">
+                    <a href="${img.public_url}" target="_blank" rel="noopener">
+                      <img src="${img.public_url}" alt="${escapeHtml(img.image_type || "repair image")}">
+                    </a>
+                    <button
+                      type="button"
+                      class="delete-saved-image-btn"
+                      data-image-id="${img.id}"
+                      data-file-path="${escapeHtml(img.file_path || "")}"
+                      data-record-id="${row.id}"
+                    >
+                      ลบรูป
+                    </button>
+                  </div>
                 `).join("")
               : `<p>ไม่มีรูปภาพ</p>`
           }
@@ -971,6 +1052,29 @@ window.showDetail = function(id) {
 
   document.body.appendChild(modal);
   document.body.classList.add("repair-modal-open");
+
+  modal.addEventListener("click", event => {
+    const imageBtn = event.target.closest(".delete-saved-image-btn[data-image-id]");
+    if (imageBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      deleteRepairImage(
+        imageBtn.dataset.imageId,
+        imageBtn.dataset.filePath || "",
+        imageBtn.dataset.recordId || row.id
+      );
+      return;
+    }
+
+    const recordBtn = event.target.closest(".modal-delete-record-btn[data-delete-record-id]");
+    if (recordBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteRepairRecord(recordBtn.dataset.deleteRecordId, recordBtn.dataset.recordNo || "");
+    }
+  });
+
   refreshIcons();
 };
 
@@ -992,6 +1096,120 @@ function detailItem(label, value, full = false) {
     </div>
   `;
 }
+
+
+/* ================= Delete Repair Image / Record ================= */
+
+window.deleteRepairImage = async function(imageId, filePath = "", recordId = "") {
+  if (!imageId) {
+    toast("ไม่พบข้อมูลรูปที่ต้องการลบ", "error");
+    return;
+  }
+
+  const ok = confirm("ต้องการลบรูปนี้ใช่ไหม?\\n\\nเมื่อลบแล้วจะกู้คืนไม่ได้");
+
+  if (!ok) return;
+
+  try {
+    toast("กำลังลบรูป...", "warning");
+
+    if (filePath) {
+      const { error: storageError } = await sb
+        .storage
+        .from(REPAIR_IMAGE_BUCKET)
+        .remove([filePath]);
+
+      if (storageError) {
+        console.warn("Storage delete warning:", storageError);
+      }
+    }
+
+    const { error: dbError } = await sb
+      .from(REPAIR_IMAGE_TABLE)
+      .delete()
+      .eq("id", imageId);
+
+    throwIfError(dbError);
+
+    toast("ลบรูปสำเร็จ", "success");
+
+    await loadHistory();
+
+    if (recordId) {
+      showDetail(recordId);
+    }
+  } catch (err) {
+    console.error("Delete repair image error:", err);
+    toast("ลบรูปไม่สำเร็จ: " + getErrorMessage(err), "error");
+  }
+};
+
+window.deleteRepairRecord = async function(recordId, recordNo = "") {
+  if (!recordId) {
+    toast("ไม่พบรายการซ่อมที่ต้องการลบ", "error");
+    return;
+  }
+
+  const firstConfirm = confirm(
+    `ต้องการลบรายการซ่อมนี้ใช่ไหม?\\n\\n${recordNo || recordId}\\n\\nระบบจะลบทั้งข้อมูลรายงานและรูปภาพทั้งหมดของรายการนี้`
+  );
+
+  if (!firstConfirm) return;
+
+  const secondConfirm = confirm(
+    "ยืนยันอีกครั้ง: เมื่อลบแล้วจะกู้คืนไม่ได้\\n\\nต้องการลบจริงหรือไม่?"
+  );
+
+  if (!secondConfirm) return;
+
+  try {
+    toast("กำลังลบรายการซ่อม...", "warning");
+
+    const { data: images, error: imageLoadError } = await sb
+      .from(REPAIR_IMAGE_TABLE)
+      .select("id, file_path")
+      .eq("repair_log_id", recordId);
+
+    throwIfError(imageLoadError);
+
+    const imagePaths = (images || [])
+      .map(img => img.file_path)
+      .filter(Boolean);
+
+    if (imagePaths.length) {
+      const { error: storageError } = await sb
+        .storage
+        .from(REPAIR_IMAGE_BUCKET)
+        .remove(imagePaths);
+
+      if (storageError) {
+        console.warn("Storage delete warning:", storageError);
+      }
+    }
+
+    const { error: imageDeleteError } = await sb
+      .from(REPAIR_IMAGE_TABLE)
+      .delete()
+      .eq("repair_log_id", recordId);
+
+    throwIfError(imageDeleteError);
+
+    const { error: recordDeleteError } = await sb
+      .from(REPAIR_TABLE)
+      .delete()
+      .eq("id", recordId);
+
+    throwIfError(recordDeleteError);
+
+    toast("ลบรายการซ่อมสำเร็จ", "success");
+
+    closeRepairModal();
+    await loadHistory();
+  } catch (err) {
+    console.error("Delete repair record error:", err);
+    toast("ลบรายการซ่อมไม่สำเร็จ: " + getErrorMessage(err), "error");
+  }
+};
 
 /* ================= UI ================= */
 
@@ -1100,6 +1318,103 @@ function isFollowUpResult(value) {
   ].includes(value);
 }
 
+
+function initDeleteFeatureStyles() {
+  if (document.getElementById("repair-delete-feature-style")) return;
+
+  const style = document.createElement("style");
+  style.id = "repair-delete-feature-style";
+  style.textContent = `
+    .preview-card {
+      position: relative;
+    }
+
+    .preview-delete-btn,
+    .delete-saved-image-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      border: none;
+      border-radius: 999px;
+      padding: 7px 12px;
+      background: rgba(239, 68, 68, 0.96);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(239, 68, 68, 0.28);
+    }
+
+    .preview-delete-btn:hover,
+    .delete-saved-image-btn:hover {
+      background: #dc2626;
+    }
+
+    .repair-image-card {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+
+    .repair-image-card a,
+    .repair-image-card img {
+      display: block;
+      width: 100%;
+    }
+
+    .history-actions,
+    .repair-modal-head-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .delete-record-btn {
+      border: 1px solid #fecaca;
+      background: #fef2f2;
+      color: #b91c1c;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .delete-record-btn:hover {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    .modal-delete-record-btn {
+      white-space: nowrap;
+    }
+
+    @media (max-width: 640px) {
+      .history-actions {
+        justify-content: flex-end;
+      }
+
+      .repair-modal-head-actions {
+        width: 100%;
+        justify-content: space-between;
+      }
+
+      .modal-delete-record-btn {
+        flex: 1;
+      }
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
 /* ================= Helpers ================= */
 
 function renderResultBadge(text) {
@@ -1159,6 +1474,10 @@ function getFileExtension(file) {
 function safeUUID() {
   if (window.crypto?.randomUUID) return crypto.randomUUID();
   return `${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+}
+
+function getErrorMessage(err) {
+  return err?.message || err?.details || err?.hint || JSON.stringify(err) || "Unknown error";
 }
 
 function throwIfError(error) {

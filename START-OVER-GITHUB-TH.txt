@@ -1,0 +1,30 @@
+MVR Smart Maintenance - เริ่ม GitHub ใหม่แบบสะอาด
+
+เป้าหมาย: ใช้ Repository เดิมชื่อ Maintenance-Report เพื่อให้ URL เดิมไม่เปลี่ยน
+https://thames3450.github.io/Maintenance-Report/
+
+1) GitHub Desktop -> File -> Clone repository
+2) เลือก Thames3450/Maintenance-Report และ Clone ไปยังโฟลเดอร์ใหม่/ว่าง
+3) Repository -> Show in Explorer
+4) ลบไฟล์เก่าภายใน repo ทั้งหมด ยกเว้นโฟลเดอร์ .git (ห้ามลบ .git)
+5) คัดลอก "ไฟล์ข้างใน" ชุด CLEAN นี้ทั้งหมดไปวางใน repo
+6) หน้าแรกของ repo ต้องเห็น:
+   .github
+   public
+   src
+   index.html
+   package.json
+   vite.config.js
+   core.js
+   shell.css
+7) กลับ GitHub Desktop -> Commit to main -> Push origin
+8) GitHub website -> Settings -> Pages -> Source = GitHub Actions
+9) Actions ต้องเห็น workflow ชื่อ "Deploy Maintenance Report"
+10) รอ build และ deploy เป็นสีเขียว
+11) เปิด https://thames3450.github.io/Maintenance-Report/ แล้ว Ctrl+F5
+
+หมายเหตุ:
+- ไม่ต้องสร้าง workflow เองอีก ชุดนี้มี .github/workflows/deploy-pages.yml แล้ว
+- Workflow ใช้ npm install จึงไม่บังคับ package-lock.json
+- ไม่มี .env ในไฟล์ที่จะอัปโหลด GitHub
+- ห้ามรัน SQL/migration ใหม่ เพราะ Supabase ตัวจริงตั้งไว้แล้ว

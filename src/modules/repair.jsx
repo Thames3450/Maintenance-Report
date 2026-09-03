@@ -515,12 +515,17 @@ function History({profile,refreshToken=0}){
   const [page,setPage]=useState(0),[total,setTotal]=useState(0);const pageSize=50;
   async function load(){setLoading(true);setError("");try{const sb=requireSupabase();const [m,t,d]=await Promise.all([
     sb.from("machines").select("id,machine_no,machine_name,department_id").order("machine_no"),
-    admin?sb.from("app_profiles").select("id,full_name,employee_code,department_id").eq("role","technician").order("full_name"):Promise.resolve({data:[],error:null}),
+    admin?sb.from("app_profiles").select("id,full_name,employee_code,department_id,photo_path").eq("role","technician").order("full_name"):Promise.resolve({data:[],error:null}),
     admin?sb.from("departments").select("id,dept_code,dept_name").order("sort_order"):Promise.resolve({data:[],error:null})
   ]);for(const x of [m,t,d])if(x.error)throw x.error;setMachines(m.data||[]);setTechs(t.data||[]);setDepartments(d.data||[]);
     let q=sb.from("repair_reports").select("id,department_id,machine_id,technician_id,technician_name_snapshot,technician_code_snapshot,technician_photo_path_snapshot,record_no,shift,time_missing,machine_group_id,area_point_id,problem_id,cause_id,action_id,area_point_snapshot,symptom,problem_type,severity,cause,action_taken,spare_parts,status,started_at,finished_at,loss_time_min,remark,machine_no_snapshot,machine_name_snapshot,production_line_snapshot,deleted_at,delete_reason,created_at",{count:"exact"}).order("started_at",{ascending:false}).range(page*pageSize,page*pageSize+pageSize-1);
     if(filters.machine_id)q=q.eq("machine_id",filters.machine_id);if(filters.technician_id)q=q.eq("technician_id",filters.technician_id);if(filters.department_id)q=q.eq("department_id",filters.department_id);if(filters.status)q=q.eq("status",filters.status);if(filters.mine)q=q.eq("technician_id",profile.id);if(filters.from)q=q.gte("started_at",localDayStartUTC(filters.from));if(filters.to)q=q.lt("started_at",localNextDayStartUTC(filters.to));if(admin&&filters.show_deleted)q=q.not("deleted_at","is",null);else q=q.is("deleted_at",null);if(filters.q){const term=filters.q.replaceAll(","," ");q=q.or(`symptom.ilike.%${term}%,cause.ilike.%${term}%,action_taken.ilike.%${term}%,machine_name_snapshot.ilike.%${term}%,machine_no_snapshot.ilike.%${term}%,area_point_snapshot.ilike.%${term}%,technician_name_snapshot.ilike.%${term}%,technician_code_snapshot.ilike.%${term}%,record_no.ilike.%${term}%`)}
-    const {data,error,count}=await q;if(error)throw error;const list=data||[];setTotal(count||0);const paths=[...new Set(list.map(r=>r.technician_photo_path_snapshot).filter(Boolean))],urls={};await Promise.all(paths.map(async p=>{urls[p]=await signedImageUrl(p)}));setRows(list.map(r=>({...r,technician_photo_url:urls[r.technician_photo_path_snapshot]||""})));}
+    const {data,error,count}=await q;if(error)throw error;const list=data||[];setTotal(count||0);
+    const techPhotoById=Object.fromEntries((t.data||[]).filter(x=>x.photo_path).map(x=>[x.id,x.photo_path]));
+    const resolvedPhotoPath=r=>r.technician_photo_path_snapshot||techPhotoById[r.technician_id]||(r.technician_id===profile.id?profile.photo_path||"":"");
+    const paths=[...new Set(list.map(resolvedPhotoPath).filter(Boolean))],urls={};
+    await Promise.all(paths.map(async p=>{urls[p]=await signedImageUrl(p)}));
+    setRows(list.map(r=>{const path=resolvedPhotoPath(r);return {...r,technician_photo_path_resolved:path,technician_photo_url:urls[path]||""}}));}
   catch(e){setError(e.message||"โหลดประวัติไม่สำเร็จ")}finally{setLoading(false)}}
   useEffect(()=>{setPage(0)},[filters.q,filters.machine_id,filters.technician_id,filters.department_id,filters.status,filters.from,filters.to,filters.mine,filters.show_deleted]);
   useEffect(()=>{load()},[refreshToken,page,filters.q,filters.machine_id,filters.technician_id,filters.department_id,filters.status,filters.from,filters.to,filters.mine,filters.show_deleted]);

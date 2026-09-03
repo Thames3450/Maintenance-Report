@@ -19,3 +19,11 @@
 ## Backend
 - ไม่มี schema mutation เพิ่มใน v2.9; ใช้ Supabase backend v2.8 เดิม
 - RLS / machine-specific master mappings / required repair photos คงเดิม
+
+## v2.17 QA
+- JSX/JS syntax check: ผ่าน 7 ไฟล์, 0 error
+- Local import check: 0 missing
+- CSS brace balance: ผ่าน
+- Supabase KPI RPC: `kpi_dashboard_v2` ใช้งานได้
+- IJ machine master: 68 เครื่อง (Injection 53 / Crane 6 / Vacuum Pump 9)
+- Security advisor: ไม่มี warning ใหม่จาก KPI RPC

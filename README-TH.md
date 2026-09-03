@@ -75,3 +75,15 @@ Frontend ใช้ Publishable Key เท่านั้น ห้ามใส�
 - ถ้าเครื่องยังไม่มี Mapping จะไม่มี Dropdown ให้เลือกและไม่มี Free Text fallback
 - Mapping เดิมที่เคยผูกกับ Production Line ถูก seed มาเป็นรายเครื่องแล้วใน Live Supabase
 - ตารางใหม่: `machine_problem_map`, `machine_cause_map`, `machine_action_map`
+
+## KPI Analytics v2.17
+หน้า KPI รองรับการกรองตาม แผนก → กลุ่ม/Zone → หมายเลขเครื่อง → ช่วงวันที่ และแสดง Machine Health รายเครื่อง, Trend, Pareto, Cause, Action, Severity, Repair Result, Technician workload และ PM performance
+
+
+## v2.19 KPI Analytics
+- KPI Dashboard แบบเจาะระดับแผนก / Zone / หมายเลขเครื่อง / ช่วงเวลา
+- Searchable dropdown สำหรับเครื่องจำนวนมาก เช่น IJ
+- Trend Downtime และ Breakdown
+- Pareto ปัญหา จุดเสีย สาเหตุ ประเภทปัญหา ความรุนแรง ผลหลังซ่อม และกะ
+- Machine Health รายเครื่อง พร้อม MTTR / MTBF / Availability
+- วิเคราะห์ภาระงานช่าง, Action ที่ใช้บ่อย, PM performance และ Breakdown ล่าสุด

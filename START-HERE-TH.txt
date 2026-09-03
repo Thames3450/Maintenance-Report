@@ -1,0 +1,31 @@
+MVR Smart Maintenance v2.6 — Final Modern Minimal UI
+
+เวอร์ชันนี้เชื่อมกับ Supabase โปรเจกต์ MPR Maintenance ตาม .env ที่ให้ไว้แล้ว
+
+บทบาทแยกชัดเจน:
+- Technician: กรอกรายงาน / ประวัติ / งาน PM เท่านั้น
+- Admin: Dashboard / รายงานซ่อม / PM-TPM / KPI / จัดการระบบ
+
+อัปเดตหลัก:
+- History Desktop Table แบบ Premium
+- History Mobile Card แบบ Luxury
+- Admin อัปโหลดรูปเครื่องแบบ Drag & Drop
+- Machine card แสดงรูปเครื่อง
+- Repair Wizard 6 Step + หน้าทบทวนก่อนส่ง
+- ลบรูป Repair ที่แนบผิดได้ก่อนส่ง
+
+วิธีรันบน Windows
+1) แตก ZIP
+2) เปิด PowerShell ในโฟลเดอร์ที่เห็น package.json
+3) npm.cmd install
+4) npm.cmd run dev
+5) เปิด http://localhost:5173
+
+หรือดับเบิลคลิก START-WINDOWS.bat
+
+หมายเหตุ: ไม่ต้องรัน migration ซ้ำ หากใช้ Supabase โปรเจกต์เดิมที่เชื่อมไว้แล้ว
+
+อัปเดต v2.8:
+- Admin ตั้งโหมดการกรอกแยก 2 กลุ่มต่อแผนกได้
+- Master Data ของ Problem / Cause / Action ผูกกับเครื่องจักรโดยตรง
+- ถ้าใช้โหมดตัวเลือกและเครื่องไม่มี Mapping ช่างจะไม่มีรายการให้เลือกและพิมพ์เองไม่ได้

@@ -22,3 +22,9 @@ Supabase project: `hftlogubohbjiivcvkut`
   - Injection มี Robot 48 เครื่อง / ไม่มี Robot 5 เครื่อง
 - เพิ่มฟิลด์ `machines.equipment_type` และ `machines.has_robot`
 - กลุ่ม IJ: Zone A1, Zone A2, Zone A3, Zone A4, Crane, Vacuum Pump
+
+## Update 2026-09-03 — Repair photo save fix
+- Applied migration `mvr_repair_upload_owner_read_fix` to live project `MPR Maintenance`.
+- `mvr_media_read` now allows authenticated users to read metadata only under their own `repair/{auth.uid()}/...` prefix in addition to existing admin/authorized reads.
+- QA with an authenticated technician claim confirmed 3/3 uploaded objects are visible to the RPC.
+- `mvr_create_repair_report()` was executed in a rollback-only QA transaction with 3 real uploaded image paths and returned the expected report UUID successfully.

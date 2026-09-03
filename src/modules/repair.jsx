@@ -34,6 +34,77 @@ function lossPreview(f){
 }
 function normalizeText(v){return clean(v).toLowerCase()}
 
+function loadImageElement(file){
+  return new Promise((resolve,reject)=>{
+    const url=URL.createObjectURL(file);
+    const image=new Image();
+    image.onload=()=>resolve({source:image,width:image.naturalWidth,height:image.naturalHeight,cleanup:()=>URL.revokeObjectURL(url)});
+    image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("อ่านไฟล์รูปภาพไม่ได้"))};
+    image.src=url;
+  });
+}
+
+async function optimizeRepairImage(file){
+  if(!file?.type?.startsWith("image/"))throw new Error("รองรับเฉพาะไฟล์รูปภาพ");
+  if(file.size<=600*1024)return file;
+  if(typeof document==="undefined")return file;
+  let source=null,width=0,height=0,cleanup=()=>{};
+  try{
+    if(typeof createImageBitmap==="function"){
+      try{
+        const bitmap=await createImageBitmap(file,{imageOrientation:"from-image"});
+        source=bitmap;width=bitmap.width;height=bitmap.height;cleanup=()=>bitmap.close?.();
+      }catch{}
+    }
+    if(!source){
+      const loaded=await loadImageElement(file);
+      source=loaded.source;width=loaded.width;height=loaded.height;cleanup=loaded.cleanup;
+    }
+    const maxSide=1600;
+    const ratio=Math.min(1,maxSide/Math.max(width,height));
+    const outW=Math.max(1,Math.round(width*ratio));
+    const outH=Math.max(1,Math.round(height*ratio));
+    const canvas=document.createElement("canvas");
+    canvas.width=outW;canvas.height=outH;
+    const ctx=canvas.getContext("2d",{alpha:false});
+    if(!ctx)return file;
+    ctx.drawImage(source,0,0,outW,outH);
+    let blob=null;
+    for(const quality of [0.78,0.70,0.62]){
+      blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",quality));
+      if(!blob||blob.size<=650*1024)break;
+    }
+    if(!blob||blob.size>=file.size)return file;
+    const base=(file.name||"repair-photo").replace(/\.[^.]+$/,'');
+    return new File([blob],`${base}.jpg`,{type:"image/jpeg",lastModified:file.lastModified||Date.now()});
+  }catch{return file}
+  finally{try{cleanup()}catch{}}
+}
+
+function RepairPhotoPicker({type,label,file,onChange,missing=false,disabled=false}){
+  const [preview,setPreview]=useState("");
+  const [processing,setProcessing]=useState(false);
+  useEffect(()=>{
+    if(!file){setPreview("");return}
+    const url=URL.createObjectURL(file);setPreview(url);
+    return ()=>URL.revokeObjectURL(url);
+  },[file]);
+  async function handleNativeFile(e){
+    const input=e.currentTarget;
+    const next=input.files?.[0]||null;
+    input.value="";
+    if(!next)return;
+    setProcessing(true);
+    try{onChange(await optimizeRepairImage(next))}
+    finally{setProcessing(false)}
+  }
+  return <div className={`upload-box modern required one-tap-picker ${file?"has-file":""} ${missing?"missing":""} ${processing?"is-processing":""}`} aria-busy={processing}>
+    {file?<><img className="upload-preview" src={preview} alt={label}/><button type="button" className="upload-remove" onClick={e=>{e.stopPropagation();onChange(null)}} disabled={disabled||processing}><Icon name="close" size={14}/> ลบรูป</button><div className="upload-caption">{label} · แนบแล้ว</div></>:<div className="upload-picker-button" aria-hidden="true"><span className="upload-placeholder"><Icon name="image"/><b>{label} <span className="req">*</span></b><span>แตะครั้งเดียวเพื่อถ่ายหรือเลือกรูป</span><small>จำเป็นต้องแนบ</small></span></div>}
+    {processing&&<div className="photo-preparing"><span className="save-progress-spinner"/><b>กำลังเตรียมรูป…</b></div>}
+    <input className="native-photo-input" type="file" accept="image/*" disabled={disabled||processing} aria-label={`${file?"เปลี่ยน":"แนบ"}รูป${label}`} onClick={e=>{e.currentTarget.value=""}} onChange={handleNativeFile}/>
+  </div>
+}
+
 function WizardSteps({step,onStep}){
   return <div className="wizard-steps" aria-label="ขั้นตอนรายงานซ่อม">
     {STEP_LABELS.map((label,i)=>{
@@ -94,7 +165,7 @@ function Wizard({profile,onSaved}){
   const [query,setQuery]=useState("");
   const [machinePhotoUrls,setMachinePhotoUrls]=useState({});
   const [files,setFiles]=useState({Before:null,Evidence:null,After:null});
-  const [busy,setBusy]=useState(false),[message,setMessage]=useState(""),[validationIssues,setValidationIssues]=useState([]);
+  const [busy,setBusy]=useState(false),[saveStage,setSaveStage]=useState(""),[message,setMessage]=useState(""),[validationIssues,setValidationIssues]=useState([]);
 
   const selectedGroup=useMemo(()=>groups.find(x=>x.id===form.group_id),[groups,form.group_id]);
   const selectedMachine=useMemo(()=>machines.find(x=>x.id===form.machine_id),[machines,form.machine_id]);
@@ -207,17 +278,31 @@ function Wizard({profile,onSaved}){
   async function submit(){
     setMessage("");
     const issues=allIssues();if(issues.length){setValidationIssues(issues);return}
-    setValidationIssues([]);setBusy(true);
+    setValidationIssues([]);setBusy(true);setSaveStage("กำลังเตรียมรูปภาพ…");
     const uploaded=[];
     try{
       const sb=requireSupabase();
-      const {data:auth}=await sb.auth.getUser();if(!auth?.user)throw new Error("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
+      const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+      if(sessionError)throw sessionError;
+      const user=sessionData?.session?.user;if(!user)throw new Error("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่");
       const reportId=crypto.randomUUID();
-      for(const [type,file] of Object.entries(files)){
-        if(!file)continue;
-        const path=await uploadRepairImage({userId:auth.user.id,reportId,file});
-        uploaded.push({image_type:type,file_name:file.name,file_path:path});
-      }
+      const photoEntries=Object.entries(files).filter(([,file])=>Boolean(file));
+      const prepared=await Promise.all(photoEntries.map(async([type,file])=>[type,await optimizeRepairImage(file)]));
+      setSaveStage(`กำลังอัปโหลดรูป ${prepared.length} รูปพร้อมกัน…`);
+      const uploadJobs=prepared.map(async([type,file])=>{
+        let lastError;
+        for(let attempt=1;attempt<=2;attempt++){
+          try{
+            const path=await uploadRepairImage({userId:user.id,reportId,file});
+            return {image_type:type,file_name:file.name,file_path:path};
+          }catch(error){lastError=error;if(attempt<2)await new Promise(r=>setTimeout(r,350))}
+        }
+        throw lastError||new Error(`อัปโหลดรูป ${type} ไม่สำเร็จ`);
+      });
+      const uploadResults=await Promise.allSettled(uploadJobs);
+      uploaded.push(...uploadResults.filter(x=>x.status==="fulfilled").map(x=>x.value));
+      const failedUpload=uploadResults.find(x=>x.status==="rejected");
+      if(failedUpload)throw failedUpload.reason||new Error("อัปโหลดรูปภาพไม่สำเร็จ กรุณาลองใหม่");
       const started=localISO(form.repair_date,form.start_time);
       let finished=form.end_time?localISO(form.repair_date,form.end_time):null;
       if(started&&finished&&new Date(finished)<new Date(started)){const d=new Date(finished);d.setDate(d.getDate()+1);finished=d.toISOString()}
@@ -231,13 +316,15 @@ function Wizard({profile,onSaved}){
         severity:form.severity,status:form.status,spare_parts:clean(form.spare_parts)||null,
         started_at:started,finished_at:finished||null,remark:clean(form.remark)||null
       };
+      setSaveStage("กำลังบันทึกรายงานลงฐานข้อมูล…");
       await rpc("mvr_create_repair_report",{p_report:payload,p_images:uploaded});
+      setSaveStage("บันทึกสำเร็จ");
       setForm(blankForm());setFiles({Before:null,Evidence:null,After:null});setValidationIssues([]);setStep(1);setMessage("บันทึกรายงานซ่อมเรียบร้อย");
       onSaved?.();
     }catch(e){
       if(uploaded.length){try{await requireSupabase().storage.from("maintenance-media").remove(uploaded.map(x=>x.file_path))}catch{}}
       setMessage(e.message||"บันทึกรายงานซ่อมไม่สำเร็จ");
-    }finally{setBusy(false)}
+    }finally{setBusy(false);setTimeout(()=>setSaveStage(""),700)}
   }
 
   if(loading)return <Loading text="กำลังเตรียมฟอร์มรายงานซ่อม…"/>;
@@ -310,7 +397,7 @@ function Wizard({profile,onSaved}){
         <div className="field-grid cols-3" style={{marginTop:12}}><div className="field"><label>ผลหลังซ่อม <span className="req">*</span></label><SearchSelect value={form.status} onChange={v=>patch("status",v)} placeholder="เลือกผลหลังซ่อม" searchable={false} options={STATUS_OPTIONS.map(([value,label])=>({value,label}))}/></div><div className="field"><label>อะไหล่ที่ใช้</label><input className="input" value={form.spare_parts} onChange={e=>patch("spare_parts",e.target.value)} placeholder="เช่น Heater / Sensor / O-Ring x2"/></div><div className="field"><label>หมายเหตุ</label><input className="input" value={form.remark} onChange={e=>patch("remark",e.target.value)} placeholder="ติดตามต่อ / รออะไหล่ / ข้อมูลเพิ่มเติม"/></div></div>
 
         <div className="upload-section-head"><div><div className="wizard-question">รูปภาพการซ่อม <span className="req">*</span></div><p>ต้องแนบครบทั้ง 3 รูปทุกครั้งก่อนส่งรายงาน</p></div><span className={`upload-complete-badge ${requiredImagesOK()?"done":""}`}><Icon name={requiredImagesOK()?"check":"warning"} size={15}/>{Object.values(files).filter(Boolean).length}/3 รูป</span></div>
-        <div className="upload-grid">{[["Before","ก่อนซ่อม"],["Evidence","จุดเสีย"],["After","หลังซ่อม"]].map(([type,label])=>{const f=files[type];const url=f?URL.createObjectURL(f):"";const missing=validationIssues.some(x=>x.step===5&&x.label.includes(label));return <label className={`upload-box modern required ${f?"has-file":""} ${missing?"missing":""}`} key={type}>{f?<><img className="upload-preview" src={url} alt={label}/><button type="button" className="upload-remove" onClick={e=>{e.preventDefault();e.stopPropagation();setFiles(x=>({...x,[type]:null}))}}><Icon name="close" size={14}/> ลบรูป</button><div className="upload-caption">{label} · แนบแล้ว</div></>:<div className="upload-placeholder"><Icon name="image"/><b>{label} <span className="req">*</span></b><span>แตะเพื่อถ่ายหรือเลือกรูป</span><small>จำเป็นต้องแนบ</small></div>}<input type="file" accept="image/*" onChange={e=>{setFiles(x=>({...x,[type]:e.target.files?.[0]||null}));e.target.value=""}}/></label>})}</div>
+        <div className="upload-grid">{[["Before","ก่อนซ่อม"],["Evidence","จุดเสีย"],["After","หลังซ่อม"]].map(([type,label])=><RepairPhotoPicker key={type} type={type} label={label} file={files[type]} missing={validationIssues.some(x=>x.step===5&&x.label.includes(label))} disabled={busy} onChange={file=>{setFiles(x=>({...x,[type]:file}));setMessage("")}}/>)}</div>
         <div className="mandatory-photo-card"><span className="mandatory-photo-icon"><Icon name="warning" size={18}/></span><div><b>รูปภาพเป็นข้อมูลบังคับ</b><p>ต้องมีรูปก่อนซ่อม, รูปจุดเสีย และรูปหลังซ่อมครบทุกครั้ง ระบบจะบอกชัดเจนถ้ายังแนบไม่ครบ</p></div></div>
       </>}
       {step===6&&<>
@@ -331,9 +418,11 @@ function Wizard({profile,onSaved}){
       </>}
     </section>
 
+    {busy&&<div className="save-progress-card" role="status" aria-live="polite"><span className="save-progress-spinner"/><div><b>{saveStage||"กำลังบันทึก…"}</b><small>กรุณาอย่าปิดหน้านี้จนกว่าจะบันทึกเสร็จ</small></div></div>}
+
     <div className="wizard-actions">
       {step>1?<button type="button" className="btn ghost" onClick={back}><span>←</span> ย้อนกลับ</button>:<button type="button" className="btn ghost" onClick={()=>{setForm(blankForm());setFiles({Before:null,Evidence:null,After:null});setValidationIssues([]);setQuery("")}}>ล้าง</button>}
-      {step<6?<button type="button" className="btn primary" onClick={next}>ถัดไป <span>→</span></button>:<button type="button" className="btn primary" disabled={busy} onClick={submit}><Icon name="save" size={17}/>{busy?"กำลังบันทึก…":"บันทึกรายงานซ่อม"}</button>}
+      {step<6?<button type="button" className="btn primary" onClick={next}>ถัดไป <span>→</span></button>:<button type="button" className="btn primary" disabled={busy} onClick={submit}><Icon name="save" size={17}/>{busy?(saveStage||"กำลังบันทึก…"):"บันทึกรายงานซ่อม"}</button>}
     </div>
   </div>;
 }

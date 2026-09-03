@@ -678,3 +678,49 @@ button.settings-item-card:hover,.settings-item-card:focus-within{border-color:#A
 @media (min-width: 900px){
   .detail-info-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+/* v2.15 full admin edit + permanent delete */
+.full-edit-mode{display:grid;gap:14px}
+.edit-section-block{border:1px solid #E0E8F4;border-radius:18px;background:#fff;padding:14px;box-shadow:0 8px 22px rgba(23,33,59,.035)}
+.edit-section-title{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.edit-section-title>span{flex:0 0 auto;display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#EEF4FF;border:1px solid #D7E5FF;color:#2F6FED;font:700 10px/1 var(--mono)}
+.edit-section-title b{display:block;font-size:13px;color:#1E293B}
+.edit-section-title small{display:block;margin-top:3px;font-size:10px;line-height:1.45;color:#8490A3}
+.full-edit-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding-top:2px}
+.danger-zone{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border:1px solid #FFD4D4;border-radius:18px;background:linear-gradient(180deg,#FFFDFD,#FFF7F7)}
+.danger-zone>div{display:flex;align-items:center;gap:11px;min-width:0}
+.danger-zone-icon{display:grid;place-items:center;flex:0 0 40px;width:40px;height:40px;border-radius:13px;background:#FFEAEA;color:#C93636}
+.danger-zone b{display:block;font-size:12px;color:#A42121}
+.danger-zone p{margin:3px 0 0;font-size:10px;line-height:1.45;color:#9A6666}
+.hard-delete-backdrop{position:fixed;inset:0;z-index:220;background:rgba(15,23,42,.62);display:grid;place-items:center;padding:16px;backdrop-filter:blur(5px)}
+.hard-delete-card{width:min(520px,100%);border-radius:24px;background:#fff;border:1px solid #F3C8C8;box-shadow:0 28px 80px rgba(15,23,42,.28);padding:18px;display:grid;gap:14px;animation:deleteCardIn .18s ease-out}
+@keyframes deleteCardIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+.hard-delete-icon{width:50px;height:50px;border-radius:16px;background:#FFF0F0;color:#C92A2A;display:grid;place-items:center;border:1px solid #FFD6D6}
+.hard-delete-copy{display:grid;gap:5px}
+.hard-delete-kicker{font:700 9px/1 var(--mono);letter-spacing:.14em;color:#D64545}
+.hard-delete-copy h3{margin:0;font-size:18px;color:#7F1D1D}
+.hard-delete-copy p{margin:0;color:#7C5A5A;font-size:11px;line-height:1.6}
+.hard-delete-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:9px;border-radius:16px;background:#FFF9F9;border:1px solid #FFE1E1}
+.hard-delete-summary>div{min-width:0;padding:9px;border-radius:12px;background:#fff;border:1px solid #F4E2E2}
+.hard-delete-summary span{display:block;font-size:9px;color:#A07777;margin-bottom:4px}
+.hard-delete-summary b{display:block;font-size:11px;color:#4B2323;overflow-wrap:anywhere}
+.hard-delete-summary small{display:block;margin-top:3px;font-size:9px;color:#9A7777;overflow-wrap:anywhere}
+.hard-delete-actions{display:flex;justify-content:flex-end;gap:10px}
+.confirm-delete{min-width:150px}
+
+@media(max-width:767px){
+  .edit-section-block{padding:12px;border-radius:16px}
+  .full-edit-actions{position:sticky;bottom:0;z-index:4;margin:0 -4px;padding:10px 4px;background:linear-gradient(180deg,rgba(245,249,255,0),#F5F9FF 28%)}
+  .full-edit-actions .btn{flex:1 1 0}
+  .danger-zone{align-items:stretch;flex-direction:column}
+  .danger-zone .btn{width:100%}
+  .hard-delete-card{padding:15px;border-radius:22px}
+  .hard-delete-summary{grid-template-columns:1fr}
+  .hard-delete-actions{display:grid;grid-template-columns:1fr 1fr}
+  .hard-delete-actions .btn{width:100%;min-width:0}
+}
+
+
+/* v2.16 technician own-report editing */
+.read-only-tech{display:flex;flex-direction:column;justify-content:center;gap:3px;background:#f8fafc;color:#17213b;cursor:default}
+.read-only-tech b{font-size:14px;line-height:1.35}.read-only-tech span{font-size:11px;color:#7b8798}

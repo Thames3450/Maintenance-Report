@@ -93,3 +93,31 @@ Frontend ใช้ Publishable Key เท่านั้น ห้ามใส�
 - ช่องแนบรูปงานซ่อมบนมือถือไม่บังคับเปิดกล้องอีกต่อไป
 - แตะช่องรูปแล้วสามารถเลือก ถ่ายรูป / Photo Library / Gallery / Files ตามเมนูของอุปกรณ์
 - ยังคงบังคับแนบรูป ก่อนซ่อม / จุดเสีย / หลังซ่อม ตามกฎเดิม
+
+---
+
+## v2.26 Maintenance Command Center
+
+เวอร์ชันนี้เพิ่มพื้นที่ Admin สำหรับการบริหารหลายแผนก โดยคงหน้าของ Technician เหมือน v2.25.1
+
+เมนู Admin ใหม่:
+1. Command Center
+2. Work Board
+3. รายงานซ่อม
+4. PM/TPM
+5. KPI
+6. ตั้งค่าระบบ
+
+### เปิดใช้ Work Board
+รัน migration นี้ใน Supabase SQL Editor หรือ migration pipeline ก่อน deploy:
+
+`supabase/migrations/20260908_admin_maintenance_tasks.sql`
+
+หลังจากนั้น `#/work` จะใช้งาน Create/Edit/Assign/Status ได้ทันที
+
+
+## v2.28.0 People & Manager Workspace
+ดูรายละเอียดใน `README-v2.28-TH.md`
+
+## v2.29.0 — Spare Request Collection
+เพิ่มระบบแจ้ง/รวบรวมความต้องการอะไหล่แบบไม่เก็บ Stock: ช่างและ Admin แจ้งได้, Admin ตรวจ/รวม Batch/Export ส่งฝ่ายจัดซื้อ, สถานะติดตามชัดเจน และแยกข้อมูลตามสิทธิ์ผู้ใช้

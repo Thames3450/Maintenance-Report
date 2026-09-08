@@ -192,7 +192,7 @@ export async function loadMyProfile({ timeoutMs = 8000 } = {}) {
 
   const result = await withTimeout(
     sb.from("app_profiles")
-      .select("id,auth_user_id,employee_code,username,full_name,department_id,role,is_active,photo_path,shift,position,departments(id,dept_code,dept_name)")
+      .select("id,auth_user_id,employee_code,username,full_name,department_id,role,is_active,photo_path,shift,position,departments!app_profiles_department_id_fkey(id,dept_code,dept_name)")
       .eq("auth_user_id", userId)
       .maybeSingle(),
     timeoutMs,

@@ -31,7 +31,11 @@ const iconFiles = Object.freeze({
   play:"Login-3--Streamline-Ultimate.png",
   dashboard:"Layout-Dashboard--Streamline-Ultimate.png",
   warning:"Calendar-Warning--Streamline-Ultimate.png",
-  checklist:"Task-Checklist-Add--Streamline-Ultimate.png"
+  checklist:"Task-Checklist-Add--Streamline-Ultimate.png",
+  spare:"Time-Clock-File-Add--Streamline-Ultimate.png",
+  download:"Harddrive-Download-1--Streamline-Ultimate.png",
+  send:"Share-1--Streamline-Ultimate.png",
+  bell:"Alarm-Bell-Ring-1--Streamline-Ultimate.png"
 });
 
 const vectorPaths = {

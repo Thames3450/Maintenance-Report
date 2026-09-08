@@ -8,18 +8,31 @@ import RepairModule from "../repair.js";
 import PMModule from "../pm.js";
 import KPIModule from "../kpi.js";
 import AdminModule from "../admin.js";
+import CommandCenter from "./modules/command_center.jsx";
+import WorkBoard from "./modules/work_board.jsx";
+import TeamManagement from "./modules/team_management.jsx";
+import MyWorkspace from "./modules/my_workspace.jsx";
+import SpareRequests from "./modules/spare_requests.jsx";
+import NotificationsModule from "./modules/notifications.jsx";
 
 const TECH_NAV=[
   {key:"repair",label:"กรอกรายงาน",icon:"report"},
   {key:"history",label:"ประวัติ",icon:"history"},
-  {key:"pm",label:"งาน PM",icon:"pm"}
+  {key:"pm",label:"งาน PM",icon:"pm"},
+  {key:"spare",label:"ขออะไหล่",icon:"spare"},
+  {key:"notify",label:"แจ้งเตือน",icon:"bell"}
 ];
 const ADMIN_NAV=[
-  {key:"home",label:"Dashboard",icon:"dashboard"},
-  {key:"repair",label:"รายงานซ่อม",icon:"report"},
-  {key:"pm",label:"PM/TPM",icon:"pm"},
-  {key:"kpi",label:"KPI",icon:"kpi"},
-  {key:"admin",label:"จัดการระบบ",icon:"admin"}
+  {key:"home",label:"Command Center",sub:"ศูนย์ควบคุม",icon:"dashboard",group:"CONTROL"},
+  {key:"work",label:"Work Board",sub:"กระดานมอบหมายงาน",icon:"checklist",group:"CONTROL"},
+  {key:"team",label:"Team Management",sub:"จัดการทีมช่าง",icon:"team",group:"PEOPLE"},
+  {key:"mywork",label:"My Workspace",sub:"งานของฉัน",icon:"user",group:"PEOPLE"},
+  {key:"repair",label:"Repair Reports",sub:"รายงานซ่อม",icon:"report",group:"MAINTENANCE"},
+  {key:"spare",label:"Spare Requests",sub:"รวบรวมความต้องการอะไหล่",icon:"spare",group:"MAINTENANCE"},
+  {key:"pm",label:"PM / TPM",sub:"แผนบำรุงรักษา",icon:"pm",group:"MAINTENANCE"},
+  {key:"kpi",label:"Analytics / KPI",sub:"วิเคราะห์ประสิทธิภาพ",icon:"kpi",group:"ANALYTICS"},
+  {key:"notify",label:"Notifications",sub:"การแจ้งเตือนมือถือ",icon:"bell",group:"SYSTEM"},
+  {key:"admin",label:"System Settings",sub:"ตั้งค่าระบบ",icon:"admin",group:"SYSTEM"}
 ];
 
 function useHashRoute(){
@@ -95,8 +108,23 @@ function Home({profile,go}){
   </div>;
 }
 
+
+function AdminSidebar({route,profile,go,logout,open,onClose}){
+  const groups=["CONTROL","PEOPLE","MAINTENANCE","ANALYTICS","SYSTEM"];
+  const groupThai={CONTROL:"ควบคุมงาน",PEOPLE:"คนและงานของฉัน",MAINTENANCE:"งานซ่อมบำรุง",ANALYTICS:"วิเคราะห์",SYSTEM:"ระบบ"};
+  return <>
+    <button className={`admin-sidebar-backdrop ${open?"show":""}`} onClick={onClose} aria-label="ปิดเมนู"/>
+    <aside className={`admin-sidebar ${open?"open":""}`}>
+      <div className="admin-side-brand"><button onClick={()=>{go("home");onClose?.()}}><span className="brand-mark"><Icon name="repair" size={25}/></span><span><b>MVR Smart</b><small>MAINTENANCE</small></span></button></div>
+      <div className="admin-side-scroll">{groups.map(g=><div className="admin-nav-group" key={g}><div className="admin-nav-group-label"><span>{g}</span><small>{groupThai[g]}</small></div>{ADMIN_NAV.filter(n=>n.group===g).map(n=><button key={n.key} className={route===n.key?"active":""} onClick={()=>{go(n.key);onClose?.()}}><span className="admin-nav-icon"><Icon name={n.icon} size={19}/></span><span className="admin-nav-copy"><b>{n.label}</b><small>{n.sub}</small></span></button>)}</div>)}</div>
+      <div className="admin-side-user"><div className="avatar">{profile.full_name?.trim()?.slice(0,1)||"?"}</div><div><b>{profile.full_name}</b><small>Administrator · ผู้ดูแลระบบ</small></div><button onClick={logout} aria-label="ออกจากระบบ"><Icon name="logout" size={17}/></button></div>
+    </aside>
+  </>;
+}
+
 export default function App(){
-  const [route,go]=useHashRoute(),[session,setSession]=useState(undefined),[profile,setProfile]=useState(null),[error,setError]=useState(""),[authNotice,setAuthNotice]=useState("");
+  const [route,go]=useHashRoute(),[session,setSession]=useState(undefined),[profile,setProfile]=useState(null),[error,setError]=useState(""),[authNotice,setAuthNotice]=useState(""),[sidebarOpen,setSidebarOpen]=useState(false);
+  useEffect(()=>{if("serviceWorker" in navigator)navigator.serviceWorker.register(`${import.meta.env.BASE_URL||"./"}sw.js`,{scope:import.meta.env.BASE_URL||"./"}).catch(()=>{})},[]);
   useEffect(()=>{
     if(!isConfigured){setSession(null);return}
     let mounted=true;const sb=requireSupabase();
@@ -126,9 +154,19 @@ export default function App(){
   if(!session)return <Login notice={authNotice}/>;
   if(error)return <ErrorState message={error}/>;
   if(!profile)return <Loading text="กำลังโหลดสิทธิ์ผู้ใช้งาน…"/>;
-  const safeRoute=admin?route:(["repair","history","pm"].includes(route)?route:"repair");
-  const View=(safeRoute==="repair"||safeRoute==="history")?RepairModule:safeRoute==="pm"?PMModule:safeRoute==="kpi"?KPIModule:safeRoute==="admin"?AdminModule:null;
-  return <div className={`page ${admin?"admin-portal":"tech-portal"}`}><header className="topbar"><button className="brand" onClick={()=>go(admin?"home":"repair")} style={{border:0,background:"transparent",padding:0,cursor:"pointer"}}><span className="brand-mark"><Icon name="repair" size={28}/></span><span className="brand-text"><span className="brand-title">MVR Smart Maintenance</span><span className="brand-sub">MAINTENANCE SYSTEM</span></span></button><nav className="desktop-nav">{allowed.map(n=><button key={n.key} className={safeRoute===n.key?"active":""} onClick={()=>go(n.key)}><Icon name={n.icon} size={20}/><span>{n.label}</span></button>)}</nav><div className="top-actions"><div className="user-chip"><div className="avatar">{profile.full_name?.trim()?.slice(0,1)||"?"}</div><div><div className="user-name">{profile.full_name}</div><div className="user-meta">{admin?"Admin":"Technician"} · {profile.departments?.dept_code||"-"}{profile.shift?` · ${profile.shift}`:""}</div></div></div><button className="icon-btn" onClick={logout} aria-label="ออกจากระบบ"><Icon name="logout" size={18}/></button></div></header>
-  <main className="content">{safeRoute==="home"&&admin?<Home profile={profile} go={go}/>:<View profile={profile} go={go} viewMode={safeRoute==="history"?"history":safeRoute==="repair"?"wizard":undefined}/>}</main>
+  const safeRoute=admin?route:(["repair","history","pm","spare","notify"].includes(route)?route:"repair");
+  const View=(safeRoute==="repair"||safeRoute==="history")?RepairModule:safeRoute==="pm"?PMModule:safeRoute==="kpi"?KPIModule:safeRoute==="admin"?AdminModule:safeRoute==="work"?WorkBoard:safeRoute==="team"?TeamManagement:safeRoute==="mywork"?MyWorkspace:safeRoute==="spare"?SpareRequests:safeRoute==="notify"?NotificationsModule:null;
+  if(admin){
+    return <div className="page admin-portal admin-shell">
+      <AdminSidebar route={safeRoute} profile={profile} go={go} logout={logout} open={sidebarOpen} onClose={()=>setSidebarOpen(false)}/>
+      <div className="admin-stage">
+        <header className="admin-mobile-bar"><button className="admin-menu-btn" onClick={()=>setSidebarOpen(true)} aria-label="เปิดเมนู"><span/><span/><span/></button><div><b>{ADMIN_NAV.find(n=>n.key===safeRoute)?.label||"Command Center"}</b><small>{ADMIN_NAV.find(n=>n.key===safeRoute)?.sub||"ศูนย์ควบคุม"}</small></div><div className="avatar">{profile.full_name?.trim()?.slice(0,1)||"?"}</div></header>
+        <main className="content admin-content">{safeRoute==="home"?<CommandCenter profile={profile} go={go}/>:<View profile={profile} go={go} viewMode={safeRoute==="history"?"history":safeRoute==="repair"?"wizard":undefined}/>}</main>
+      </div><div id="toast-root"/>
+    </div>;
+  }
+  return <div className="page tech-portal"><header className="topbar"><button className="brand" onClick={()=>go("repair")} style={{border:0,background:"transparent",padding:0,cursor:"pointer"}}><span className="brand-mark"><Icon name="repair" size={28}/></span><span className="brand-text"><span className="brand-title">MVR Smart Maintenance</span><span className="brand-sub">MAINTENANCE SYSTEM</span></span></button><nav className="desktop-nav">{allowed.map(n=><button key={n.key} className={safeRoute===n.key?"active":""} onClick={()=>go(n.key)}><Icon name={n.icon} size={20}/><span>{n.label}</span></button>)}</nav><div className="top-actions"><div className="user-chip"><div className="avatar">{profile.full_name?.trim()?.slice(0,1)||"?"}</div><div><div className="user-name">{profile.full_name}</div><div className="user-meta">Technician · {profile.departments?.dept_code||"-"}{profile.shift?` · ${profile.shift}`:""}</div></div></div><button className="icon-btn" onClick={logout} aria-label="ออกจากระบบ"><Icon name="logout" size={18}/></button></div></header>
+  <main className="content"><View profile={profile} go={go} viewMode={safeRoute==="history"?"history":safeRoute==="repair"?"wizard":undefined}/></main>
   <nav className="bottom-nav">{allowed.map(n=><button key={n.key} className={safeRoute===n.key?"active":""} onClick={()=>go(n.key)}><span className="nav-ico"><Icon name={n.icon} size={18}/></span><span>{n.label}</span></button>)}</nav><div id="toast-root"/></div>;
+
 }

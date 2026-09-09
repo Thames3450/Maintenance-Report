@@ -216,8 +216,8 @@ function Wizard({profile,onSaved}){
   },[machines.length]);
 
   function patch(k,v){setMessage("");setForm(f=>({...f,[k]:v}))}
-  function chooseGroup(id){setValidationIssues([]);setForm(f=>({...f,group_id:id,machine_id:"",area_point_id:"",problem_id:"",cause_id:"",action_id:""}));setQuery("");setStep(2)}
-  function chooseMachine(id){setValidationIssues([]);setForm(f=>({...f,machine_id:id,area_point_id:"",problem_id:"",cause_id:"",action_id:""}));setQuery("");setStep(3)}
+  function chooseGroup(id){setValidationIssues([]);setForm(f=>({...f,group_id:id,machine_id:"",area_point_id:"",problem_id:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(2)}
+  function chooseMachine(id){setValidationIssues([]);setForm(f=>({...f,machine_id:id,area_point_id:"",problem_id:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(3)}
 
   const visibleGroups=useMemo(()=>groups.filter(g=>!query||normalizeText(`${g.group_name} ${g.group_code}`).includes(normalizeText(query))),[groups,query]);
   const groupMachines=useMemo(()=>machines.filter(m=>m.machine_group_id===form.group_id&&(!query||normalizeText(`${m.machine_no} ${m.machine_name} ${m.production_line}`).includes(normalizeText(query)))),[machines,form.group_id,query]);
@@ -229,6 +229,10 @@ function Wizard({profile,onSaved}){
     return all.filter(x=>ids.includes(x.id));
   }
   const machineProblems=useMemo(()=>mappedList(problems,machineProblemMap,"problem_id"),[problems,machineProblemMap,selectedMachine?.id]);
+  const orderedMachineProblems=useMemo(()=>[...machineProblems].sort((a,b)=>{
+    const rank=p=>p.problem_code?.startsWith("VFM")?0:1;
+    return rank(a)-rank(b)||String(a.problem_name||"").localeCompare(String(b.problem_name||""),"th");
+  }),[machineProblems]);
   const machineCauses=useMemo(()=>mappedList(causes,machineCauseMap,"cause_id"),[causes,machineCauseMap,selectedMachine?.id]);
   const machineActions=useMemo(()=>mappedList(actions,machineActionMap,"action_id"),[actions,machineActionMap,selectedMachine?.id]);
 
@@ -372,7 +376,7 @@ function Wizard({profile,onSaved}){
               <div><h4>อาการเสีย <span className="req">*</span></h4><p>เลือกอาการที่ใกล้เคียงกับเหตุการณ์จริงมากที่สุด</p></div>
               <span className="choice-count mono">{machineProblems.length} รายการ</span>
             </div>
-            {!machineProblems.length?<Empty title="ยังไม่มีอาการเสียสำหรับเครื่องนี้" text="Admin ยังไม่ได้กำหนด Problem ให้เครื่องนี้ จึงไม่มีตัวเลือกและไม่สามารถพิมพ์เองได้"/>:<div className="field"><SearchSelect className="professional-select" value={form.problem_id} onChange={v=>patch("problem_id",v)} placeholder="เลือกอาการเสีย" searchPlaceholder="พิมพ์ค้นหาอาการเสีย…" options={machineProblems.map(p=>({value:p.id,label:p.problem_name,sub:p.breakdown_type||""}))}/></div>}
+            {!machineProblems.length?<Empty title="ยังไม่มีอาการเสียสำหรับเครื่องนี้" text="Admin ยังไม่ได้กำหนด Problem ให้เครื่องนี้ จึงไม่มีตัวเลือก"/>:<><div className="field"><SearchSelect className="professional-select" value={form.problem_id} onChange={v=>setForm(f=>({...f,problem_id:v,symptom:""}))} placeholder="เลือกอาการเสีย" searchPlaceholder="พิมพ์ค้นหา เช่น Vacuum / Sensor / Heater / Clamp…" options={orderedMachineProblems.filter(p=>p.problem_code!=="VFM999").map(p=>({value:p.id,label:p.problem_name,sub:p.breakdown_type||""}))}/></div><div className="controlled-master-note"><b>หาอาการไม่เจอ?</b><span>แจ้ง Engineer / Admin เพื่อเพิ่มรายการมาตรฐานให้เครื่องนี้ ช่างยังไม่สามารถเพิ่มอาการเองได้</span></div></>}
             {(selectedProblem||form.problem_id)&&<div className="selected-preview-card accent"><span>อาการที่เลือก</span><b>{selectedProblem?.problem_name||"-"}</b>{selectedProblem?.breakdown_type&&<small>{selectedProblem.breakdown_type}</small>}</div>}
           </section>
         </div>:<div className="field-grid cols-2"><div className="field"><label>จุดที่เสีย</label><input className="input" value={form.area_point_text} onChange={e=>patch("area_point_text",e.target.value)} placeholder="เช่น Loading / Heater / Clamp"/></div><div className="field full"><label>อาการเสีย <span className="req">*</span></label><textarea className="textarea" value={form.symptom} onChange={e=>patch("symptom",e.target.value)} placeholder="อธิบายอาการที่พบ"/></div></div>}
@@ -486,11 +490,12 @@ function ReportDetail({row,profile,onClose,onChanged}){
   const freeCauseAction=Boolean(selectedEditDept?.free_text_cause_action);
   const machinePoints=master.points.filter(x=>x.machine_id===edit.machine_id&&x.is_active!==false);
   const mapped=(all,mapRows,key)=>{const ids=mapRows.filter(x=>x.machine_id===edit.machine_id).map(x=>x[key]);return all.filter(x=>ids.includes(x.id)&&x.is_active!==false)};
-  const machineProblems=mapped(master.problems,master.problemMap,"problem_id");
+  const machineProblems=mapped(master.problems,master.problemMap,"problem_id").filter(p=>admin||p.problem_code!=="VFM999");
   const machineCauses=mapped(master.causes,master.causeMap,"cause_id");
   const machineActions=mapped(master.actions,master.actionMap,"action_id");
   const selectedPoint=master.points.find(x=>x.id===edit.area_point_id);
   const selectedProblem=master.problems.find(x=>x.id===edit.problem_id);
+  const customEditProblem=selectedProblem?.problem_code==="VFM999";
   const selectedCause=master.causes.find(x=>x.id===edit.cause_id);
   const selectedAction=master.actions.find(x=>x.id===edit.action_id);
   const technicianOptions=(admin?master.techs:master.techs.filter(t=>t.id===profile.id)).filter(t=>!selectedEditMachine||t.department_id===selectedEditMachine.department_id||t.id===edit.technician_id).map(t=>({value:t.id,label:t.full_name,sub:`${t.employee_code}${t.shift?` · กะ ${t.shift}`:""}${t.is_active?"":" · Inactive"}`}));
@@ -503,7 +508,7 @@ function ReportDetail({row,profile,onClose,onChanged}){
     if(!edit.started_at||!edit.finished_at)return "ระบุวันที่และเวลาเริ่ม/จบให้ครบ";
     const s=toISO(edit.started_at),f=toISO(edit.finished_at);if(!s||!f)return "รูปแบบวันที่หรือเวลาไม่ถูกต้อง";if(new Date(f)<new Date(s))return "เวลาซ่อมเสร็จต้องไม่ก่อนเวลาเริ่ม";
     if(freeMachineProblem){if(!clean(edit.symptom))return "กรอกอาการเสีย"}
-    else if(edit.machine_id!==row.machine_id){if(!edit.area_point_id)return "เลือกจุดที่เสียของเครื่องใหม่";if(!edit.problem_id)return "เลือกอาการเสียของเครื่องใหม่"}
+    else {if(edit.machine_id!==row.machine_id){if(!edit.area_point_id)return "เลือกจุดที่เสียของเครื่องใหม่";if(!edit.problem_id)return "เลือกอาการเสียของเครื่องใหม่"}if(admin&&customEditProblem&&!clean(edit.symptom))return "กรอกอาการเสียที่พบจริง"}
     if(freeCauseAction){if(!clean(edit.cause))return "กรอกสาเหตุ";if(!clean(edit.action_taken))return "กรอกวิธีแก้ไข"}
     else if(edit.machine_id!==row.machine_id){if(!edit.cause_id)return "เลือกสาเหตุของเครื่องใหม่";if(!edit.action_id)return "เลือกวิธีแก้ไขของเครื่องใหม่"}
     return "";
@@ -519,7 +524,7 @@ function ReportDetail({row,profile,onClose,onChanged}){
         area_point_id:freeMachineProblem?null:(edit.area_point_id||row.area_point_id||null),
         area_point_snapshot:freeMachineProblem?(clean(edit.area_point_text)||null):(edit.area_point_id?(selectedPoint?.point_name||null):(row.area_point_snapshot||null)),
         problem_id:freeMachineProblem?null:(edit.problem_id||row.problem_id||null),
-        symptom:freeMachineProblem?clean(edit.symptom):(edit.problem_id?(selectedProblem?.problem_name||edit.symptom):row.symptom),
+        symptom:freeMachineProblem?clean(edit.symptom):(edit.problem_id?(customEditProblem?clean(edit.symptom):(selectedProblem?.problem_name||edit.symptom)):row.symptom),
         problem_type:freeMachineProblem?null:(edit.problem_id?(selectedProblem?.breakdown_type||null):row.problem_type||null),
         cause_id:freeCauseAction?null:(edit.cause_id||row.cause_id||null),
         cause:freeCauseAction?clean(edit.cause):(edit.cause_id?(selectedCause?.cause_name||edit.cause):row.cause),
@@ -580,7 +585,7 @@ function ReportDetail({row,profile,onClose,onChanged}){
 
         <div className="edit-section-block"><div className="edit-section-title"><span>02</span><div><b>วันที่ เวลา และผลซ่อม</b><small>Downtime จะคำนวณใหม่อัตโนมัติจากเวลาเริ่มและเวลาจบ</small></div></div><div className="field-grid cols-2"><div className="field"><label>วันที่/เวลาเริ่ม <span className="req">*</span></label><input className="input" type="datetime-local" value={edit.started_at} onChange={e=>setEdit(x=>({...x,started_at:e.target.value}))}/></div><div className="field"><label>วันที่/เวลาซ่อมเสร็จ <span className="req">*</span></label><input className="input" type="datetime-local" value={edit.finished_at} onChange={e=>setEdit(x=>({...x,finished_at:e.target.value}))}/></div><div className="field"><label>ผลหลังซ่อม</label><SearchSelect value={edit.status} onChange={v=>setEdit(x=>({...x,status:v}))} searchable={false} options={STATUS_OPTIONS.map(([value,label])=>({value,label}))}/></div><div className="field"><label>ความรุนแรง</label><SearchSelect value={edit.severity} onChange={v=>setEdit(x=>({...x,severity:v}))} searchable={false} options={SEVERITY_OPTIONS.map(([value,label])=>({value,label}))}/></div></div></div>
 
-        <div className="edit-section-block"><div className="edit-section-title"><span>03</span><div><b>จุดเสียและอาการ</b><small>{selectedEditDept?`โหมดแผนก ${selectedEditDept.dept_code}: ${freeMachineProblem?"กรอกเอง":"ใช้ตัวเลือกตามเครื่อง"}`:"เลือกเครื่องจักรก่อน"}</small></div></div>{!edit.machine_id?<div className="notice warning">เลือกเครื่องจักรก่อนเพื่อโหลดจุดเสียและอาการ</div>:freeMachineProblem?<div className="field-grid cols-2"><div className="field"><label>จุดที่เสีย</label><input className="input" value={edit.area_point_text} onChange={e=>setEdit(x=>({...x,area_point_text:e.target.value}))} placeholder="กรอกจุดที่เสีย"/></div><div className="field full"><label>อาการเสีย <span className="req">*</span></label><textarea className="textarea" value={edit.symptom} onChange={e=>setEdit(x=>({...x,symptom:e.target.value}))} placeholder="กรอกอาการเสีย"/></div></div>:<div className="field-grid cols-2"><div className="field"><label>จุดที่เสีย</label><SearchSelect value={edit.area_point_id} onChange={v=>setEdit(x=>({...x,area_point_id:v}))} placeholder={row.area_point_id?"เลือกจุดที่เสีย":"คงข้อมูลเดิมได้ หรือเลือกใหม่"} options={machinePoints.map(p=>({value:p.id,label:p.point_name,sub:p.point_code||""}))}/></div><div className="field"><label>อาการเสีย</label><SearchSelect value={edit.problem_id} onChange={v=>setEdit(x=>({...x,problem_id:v}))} placeholder={row.problem_id?"เลือกอาการเสีย":"คงข้อมูลเดิมได้ หรือเลือกใหม่"} options={machineProblems.map(p=>({value:p.id,label:p.problem_name,sub:p.breakdown_type||""}))}/></div></div>}</div>
+        <div className="edit-section-block"><div className="edit-section-title"><span>03</span><div><b>จุดเสียและอาการ</b><small>{selectedEditDept?`โหมดแผนก ${selectedEditDept.dept_code}: ${freeMachineProblem?"กรอกเอง":"ใช้ตัวเลือกตามเครื่อง"}`:"เลือกเครื่องจักรก่อน"}</small></div></div>{!edit.machine_id?<div className="notice warning">เลือกเครื่องจักรก่อนเพื่อโหลดจุดเสียและอาการ</div>:freeMachineProblem?<div className="field-grid cols-2"><div className="field"><label>จุดที่เสีย</label><input className="input" value={edit.area_point_text} onChange={e=>setEdit(x=>({...x,area_point_text:e.target.value}))} placeholder="กรอกจุดที่เสีย"/></div><div className="field full"><label>อาการเสีย <span className="req">*</span></label><textarea className="textarea" value={edit.symptom} onChange={e=>setEdit(x=>({...x,symptom:e.target.value}))} placeholder="กรอกอาการเสีย"/></div></div>:<div className="field-grid cols-2"><div className="field"><label>จุดที่เสีย</label><SearchSelect value={edit.area_point_id} onChange={v=>setEdit(x=>({...x,area_point_id:v}))} placeholder={row.area_point_id?"เลือกจุดที่เสีย":"คงข้อมูลเดิมได้ หรือเลือกใหม่"} options={machinePoints.map(p=>({value:p.id,label:p.point_name,sub:p.point_code||""}))}/></div><div className="field"><label>อาการเสีย</label><SearchSelect value={edit.problem_id} onChange={v=>setEdit(x=>({...x,problem_id:v,symptom:""}))} placeholder={row.problem_id?"เลือกอาการเสีย":"คงข้อมูลเดิมได้ หรือเลือกใหม่"} options={machineProblems.map(p=>({value:p.id,label:p.problem_name,sub:p.breakdown_type||""}))}/>{admin&&customEditProblem&&<textarea className="textarea" style={{marginTop:10}} value={edit.symptom} onChange={e=>setEdit(x=>({...x,symptom:e.target.value}))} placeholder="กรอกอาการเสียที่พบจริง"/>}</div></div>}</div>
 
         <div className="edit-section-block"><div className="edit-section-title"><span>04</span><div><b>สาเหตุและวิธีแก้ไข</b><small>{selectedEditDept?`โหมดแผนก ${selectedEditDept.dept_code}: ${freeCauseAction?"กรอกเอง":"ใช้ตัวเลือกตามเครื่อง"}`:"เลือกเครื่องจักรก่อน"}</small></div></div>{!edit.machine_id?<div className="notice warning">เลือกเครื่องจักรก่อนเพื่อโหลด Cause / Action</div>:freeCauseAction?<div className="field-grid cols-2"><div className="field full"><label>สาเหตุ <span className="req">*</span></label><textarea className="textarea" value={edit.cause} onChange={e=>setEdit(x=>({...x,cause:e.target.value}))}/></div><div className="field full"><label>วิธีแก้ไข <span className="req">*</span></label><textarea className="textarea" value={edit.action_taken} onChange={e=>setEdit(x=>({...x,action_taken:e.target.value}))}/></div></div>:<div className="field-grid cols-2"><div className="field"><label>สาเหตุ</label><SearchSelect value={edit.cause_id} onChange={v=>setEdit(x=>({...x,cause_id:v}))} placeholder={row.cause_id?"เลือกสาเหตุ":"คงข้อมูลเดิมได้ หรือเลือกใหม่"} options={machineCauses.map(c=>({value:c.id,label:c.cause_name,sub:c.category||""}))}/></div><div className="field"><label>วิธีแก้ไข</label><SearchSelect value={edit.action_id} onChange={v=>setEdit(x=>({...x,action_id:v}))} placeholder={row.action_id?"เลือกวิธีแก้ไข":"คงข้อมูลเดิมได้ หรือเลือกใหม่"} options={machineActions.map(a=>({value:a.id,label:a.action_name,sub:a.action_code||""}))}/></div></div>}</div>
 

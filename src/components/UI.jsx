@@ -61,6 +61,7 @@ export function SearchSelect({
   labelKey="label", valueKey="value", subKey="sub", disabled=false, searchable=true, className=""
 }){
   const [open,setOpen]=useState(false),[query,setQuery]=useState("");
+  const [mobileMode,setMobileMode]=useState(()=>typeof window!=="undefined"&&window.matchMedia?.("(max-width:599px)").matches);
   const root=useRef(null);
   const normalized=options.map(o=>typeof o==="string"?{value:o,label:o}:o);
   const selected=normalized.find(o=>String(o[valueKey])===String(value));
@@ -70,27 +71,46 @@ export function SearchSelect({
     return normalized.filter(o=>`${o[labelKey]??""} ${o[subKey]??""}`.toLowerCase().includes(q));
   },[query,options,labelKey,subKey]);
   useEffect(()=>{
+    const mq=window.matchMedia?.("(max-width:599px)");
+    if(!mq)return;
+    const sync=()=>setMobileMode(mq.matches);
+    sync();mq.addEventListener?.("change",sync);
+    return()=>mq.removeEventListener?.("change",sync);
+  },[]);
+  useEffect(()=>{
     const close=e=>{if(root.current&&!root.current.contains(e.target))setOpen(false)};
     const esc=e=>{if(e.key==="Escape")setOpen(false)};
     document.addEventListener("mousedown",close);document.addEventListener("keydown",esc);
     return()=>{document.removeEventListener("mousedown",close);document.removeEventListener("keydown",esc)};
   },[]);
-  function choose(v){onChange?.(v);setOpen(false);setQuery("")}
+  useEffect(()=>{
+    if(!open||!mobileMode)return;
+    const body=document.body,html=document.documentElement,scrollY=window.scrollY;
+    const prev={position:body.style.position,top:body.style.top,width:body.style.width,overflow:body.style.overflow,htmlOverflow:html.style.overflow};
+    body.style.position="fixed";body.style.top=`-${scrollY}px`;body.style.width="100%";body.style.overflow="hidden";html.style.overflow="hidden";
+    return()=>{body.style.position=prev.position;body.style.top=prev.top;body.style.width=prev.width;body.style.overflow=prev.overflow;html.style.overflow=prev.htmlOverflow;window.scrollTo(0,scrollY)};
+  },[open,mobileMode]);
+  function closeMenu(){setOpen(false);setQuery("")}
+  function choose(v){onChange?.(v);closeMenu()}
   return <div ref={root} className={`smart-select ${open?"open":""} ${disabled?"disabled":""} ${className}`.trim()}>
-    <button type="button" className="smart-select-trigger" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={()=>!disabled&&setOpen(v=>!v)}>
+    <button type="button" className="smart-select-trigger" disabled={disabled} aria-haspopup="listbox" aria-expanded={open} onClick={()=>!disabled&&(open?closeMenu():setOpen(true))}>
       <span className={`smart-select-value ${selected?"":"placeholder"}`}>{selected?.[labelKey]||placeholder}</span>
       {selected?.[subKey]&&<span className="smart-select-sub">{selected[subKey]}</span>}
       <span className="smart-select-chevron" aria-hidden="true"><Icon name="chevron" size={18}/></span>
     </button>
-    {open&&<div className="smart-select-menu">
-      {searchable&&<div className="smart-select-search"><Icon name="search" size={17}/><input autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder={searchPlaceholder}/></div>}
-      <div className="smart-select-options" role="listbox">
-        {!filtered.length?<div className="smart-select-empty">ไม่พบรายการที่ค้นหา</div>:filtered.map((o,i)=>{
-          const v=o[valueKey],active=String(v)===String(value);
-          return <button type="button" role="option" aria-selected={active} className={`smart-select-option ${active?"active":""}`} key={`${v}-${i}`} onClick={()=>choose(v)}>
-            <span><b>{o[labelKey]}</b>{o[subKey]&&<small>{o[subKey]}</small>}</span>{active&&<Icon name="check" size={18}/>}
-          </button>;
-        })}
+    {open&&<div className="smart-select-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)closeMenu()}}>
+      <div className="smart-select-menu" onMouseDown={e=>e.stopPropagation()}>
+        <div className="smart-select-sheet-head"><div><span>เลือกข้อมูล</span><b>{placeholder}</b></div><button type="button" className="smart-select-sheet-close" onClick={closeMenu} aria-label="ปิดรายการ"><Icon name="close" size={19}/></button></div>
+        {searchable&&<div className="smart-select-search"><Icon name="search" size={17}/><input autoFocus={!mobileMode} value={query} onChange={e=>setQuery(e.target.value)} placeholder={searchPlaceholder}/>{query&&<button type="button" className="smart-select-clear" onClick={()=>setQuery("")} aria-label="ล้างคำค้นหา">×</button>}</div>}
+        <div className="smart-select-options" role="listbox" aria-label={placeholder}>
+          {!filtered.length?<div className="smart-select-empty">ไม่พบรายการที่ค้นหา</div>:filtered.map((o,i)=>{
+            const v=o[valueKey],active=String(v)===String(value);
+            return <button type="button" role="option" aria-selected={active} className={`smart-select-option ${active?"active":""}`} key={`${v}-${i}`} onClick={()=>choose(v)}>
+              <span><b>{o[labelKey]}</b>{o[subKey]&&<small>{o[subKey]}</small>}</span>{active&&<Icon name="check" size={18}/>}
+            </button>;
+          })}
+        </div>
+        {mobileMode&&<div className="smart-select-sheet-foot"><span>{filtered.length.toLocaleString("th-TH")} รายการ</span><small>เลื่อนรายการด้านบนได้โดยเมนูจะไม่ปิด</small></div>}
       </div>
     </div>}
   </div>;

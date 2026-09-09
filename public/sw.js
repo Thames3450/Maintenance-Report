@@ -1,4 +1,4 @@
-const VERSION="mvr-smart-v2303";
+const VERSION="mvr-smart-v230";
 self.addEventListener("install",()=>self.skipWaiting());
 self.addEventListener("activate",event=>event.waitUntil(self.clients.claim()));
 self.addEventListener("fetch",()=>{});
@@ -8,7 +8,7 @@ self.addEventListener("push",event=>{
   const title=data.title||"MVR Smart Maintenance";
   const options={
     body:data.body||"มีการแจ้งเตือนใหม่",
-    icon:"./mpr-icon-192.png",badge:"./mpr-favicon.png",
+    icon:"./pwa-192.png",badge:"./pwa-192.png",
     tag:data.tag||undefined,renotify:Boolean(data.renotify),
     data:{route:data.route||"#/notify",...data.data},
     vibrate:[150,80,150]

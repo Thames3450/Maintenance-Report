@@ -36,6 +36,7 @@ jobs:
           VITE_EMPLOYEE_LOGIN_FUNCTION: employee-code-login
           VITE_ADMIN_LOGIN_FUNCTION: admin-login
           VITE_USER_ADMIN_FUNCTION: mvr-user-admin
+          VITE_VAPID_PUBLIC_KEY: BKpdBxqC1cPHntfM6EBXwwd-AqtzbQQ0fW8iDqg22zZOlHxS_7mIdVMqcp3-JWLOahbV3-ARcKzRsJXX427I_aA
         run: npm run build
 
       - name: Setup GitHub Pages

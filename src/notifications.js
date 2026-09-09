@@ -1,6 +1,6 @@
 import { requireSupabase } from "../core.js";
 
-export const VAPID_PUBLIC_KEY=String(import.meta.env.VITE_VAPID_PUBLIC_KEY||"").trim();
+export const VAPID_PUBLIC_KEY=String(import.meta.env.VITE_VAPID_PUBLIC_KEY||"BKpdBxqC1cPHntfM6EBXwwd-AqtzbQQ0fW8iDqg22zZOlHxS_7mIdVMqcp3-JWLOahbV3-ARcKzRsJXX427I_aA").trim();
 
 export function pushSupported(){
   return typeof window!=="undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;

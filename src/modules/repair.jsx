@@ -11,11 +11,22 @@ const STATUS_OPTIONS=[
 ];
 const SEVERITY_OPTIONS=[["low","เล็กน้อย"],["medium","ปานกลาง"],["high","รุนแรง"]];
 const STEP_LABELS=["กลุ่มเครื่อง","หมายเลขเครื่อง","จุดเสีย / อาการ","วิเคราะห์และแก้ไข","เวลา / รูปภาพ","ทบทวนก่อนส่ง"];
+const VACUUM_PROBLEM_SYSTEMS=[
+  {key:"vacuum",label:"Vacuum",sub:"ระบบดูด"},
+  {key:"heating",label:"Heater",sub:"ฮีตเตอร์ / อุณหภูมิ"},
+  {key:"clamp_forming",label:"Clamp / Forming",sub:"แคลมป์ / Forming Box"},
+  {key:"loading_transfer",label:"Loading / Transfer",sub:"โหลดดิ้ง / จับยึด / ส่งชิ้นงาน"},
+  {key:"pneumatic_hydraulic",label:"Air / Hydraulic",sub:"ลม / ไฮดรอลิก"},
+  {key:"electrical_control",label:"Electrical / Control",sub:"ไฟฟ้า / PLC / Servo"},
+  {key:"water_cooling",label:"Water / Cooling",sub:"น้ำ / Chiller"},
+  {key:"safety",label:"Safety",sub:"Interlock / E-Stop"},
+  {key:"mechanical",label:"Mechanical",sub:"เครื่องกล / ชุดขับ"}
+];
 
 function blankForm(){
   return {
     repair_date:localDateISO(), group_id:"", machine_id:"", area_point_id:"", area_point_text:"",
-    problem_id:"", symptom:"", problem_type:"", cause_id:"", cause:"", action_id:"", action_taken:"",
+    problem_id:"", problem_system:"", symptom:"", problem_type:"", cause_id:"", cause:"", action_id:"", action_taken:"",
     severity:"medium", status:"", start_time:new Date().toTimeString().slice(0,5), end_time:"",
     spare_parts:"", remark:""
   };
@@ -187,7 +198,7 @@ function Wizard({profile,onSaved}){
         sb.from("machine_groups").select("id,department_id,group_code,group_name,sort_order,is_active").eq("is_active",true).order("sort_order").order("group_name"),
         sb.from("machines").select("id,department_id,machine_group_id,machine_no,machine_name,production_line,line_id,is_active,photo_path").eq("is_active",true).order("machine_no"),
         sb.from("area_points").select("id,machine_id,point_code,point_name,is_active").eq("is_active",true).order("point_name"),
-        sb.from("problems").select("id,problem_code,problem_name,breakdown_type,department_code,is_active").eq("is_active",true).order("problem_name"),
+        sb.from("problems").select("id,problem_code,problem_name,breakdown_type,department_code,system_group,symptom_sort_order,is_active").eq("is_active",true).order("problem_name"),
         sb.from("causes").select("id,cause_code,cause_name,category,department_code,is_active").eq("is_active",true).order("cause_name"),
         sb.from("actions").select("id,action_code,action_name,department_code,is_active").eq("is_active",true).order("action_name"),
         sb.from("machine_problem_map").select("machine_id,problem_id"),
@@ -216,8 +227,8 @@ function Wizard({profile,onSaved}){
   },[machines.length]);
 
   function patch(k,v){setMessage("");setForm(f=>({...f,[k]:v}))}
-  function chooseGroup(id){setValidationIssues([]);setForm(f=>({...f,group_id:id,machine_id:"",area_point_id:"",problem_id:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(2)}
-  function chooseMachine(id){setValidationIssues([]);setForm(f=>({...f,machine_id:id,area_point_id:"",problem_id:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(3)}
+  function chooseGroup(id){setValidationIssues([]);setForm(f=>({...f,group_id:id,machine_id:"",area_point_id:"",problem_id:"",problem_system:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(2)}
+  function chooseMachine(id){setValidationIssues([]);setForm(f=>({...f,machine_id:id,area_point_id:"",problem_id:"",problem_system:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(3)}
 
   const visibleGroups=useMemo(()=>groups.filter(g=>!query||normalizeText(`${g.group_name} ${g.group_code}`).includes(normalizeText(query))),[groups,query]);
   const groupMachines=useMemo(()=>machines.filter(m=>m.machine_group_id===form.group_id&&(!query||normalizeText(`${m.machine_no} ${m.machine_name} ${m.production_line}`).includes(normalizeText(query)))),[machines,form.group_id,query]);
@@ -229,10 +240,15 @@ function Wizard({profile,onSaved}){
     return all.filter(x=>ids.includes(x.id));
   }
   const machineProblems=useMemo(()=>mappedList(problems,machineProblemMap,"problem_id"),[problems,machineProblemMap,selectedMachine?.id]);
+  const isVacuumFormingMachine=Boolean(department?.dept_code==="MVR"&&/^(IVF|DVF)/i.test(selectedMachine?.machine_no||""));
   const orderedMachineProblems=useMemo(()=>[...machineProblems].sort((a,b)=>{
-    const rank=p=>p.problem_code?.startsWith("VFM")?0:1;
-    return rank(a)-rank(b)||String(a.problem_name||"").localeCompare(String(b.problem_name||""),"th");
+    const sa=Number(a.symptom_sort_order??999),sb=Number(b.symptom_sort_order??999);
+    return sa-sb||String(a.problem_name||"").localeCompare(String(b.problem_name||""),"th");
   }),[machineProblems]);
+  const vacuumSystemOptions=useMemo(()=>VACUUM_PROBLEM_SYSTEMS.map(x=>({
+    ...x,count:machineProblems.filter(p=>p.system_group===x.key).length
+  })).filter(x=>x.count>0),[machineProblems]);
+  const visibleVacuumProblems=useMemo(()=>orderedMachineProblems.filter(p=>p.system_group===form.problem_system),[orderedMachineProblems,form.problem_system]);
   const machineCauses=useMemo(()=>mappedList(causes,machineCauseMap,"cause_id"),[causes,machineCauseMap,selectedMachine?.id]);
   const machineActions=useMemo(()=>mappedList(actions,machineActionMap,"action_id"),[actions,machineActionMap,selectedMachine?.id]);
 
@@ -244,6 +260,7 @@ function Wizard({profile,onSaved}){
       if(!freeMachineProblem&&!machinePoints.length)issues.push({step:3,label:"เครื่องนี้ยังไม่มีจุดเสีย",detail:"Admin ยังไม่ได้กำหนดจุดเสียให้เครื่องนี้"});
       else if(!freeMachineProblem&&!form.area_point_id)issues.push({step:3,label:"ยังไม่ได้เลือกจุดที่เสีย",detail:"เลือกจุดเสียจากตัวเลือกของเครื่อง"});
       if(!freeMachineProblem&&!machineProblems.length)issues.push({step:3,label:"เครื่องนี้ยังไม่มีอาการเสีย",detail:"Admin ยังไม่ได้กำหนด Problem ให้เครื่องนี้"});
+      else if(!freeMachineProblem&&isVacuumFormingMachine&&!form.problem_system)issues.push({step:3,label:"ยังไม่ได้เลือกระบบที่มีปัญหา",detail:"เลือก Vacuum / Heater / Clamp / ระบบอื่นก่อนเลือกอาการ"});
       else if(!freeMachineProblem&&!form.problem_id)issues.push({step:3,label:"ยังไม่ได้เลือกอาการเสีย",detail:"เลือกอาการเสียจากตัวเลือกของเครื่อง"});
       if(freeMachineProblem&&!clean(form.symptom))issues.push({step:3,label:"ยังไม่ได้กรอกอาการเสีย",detail:"กรอกอาการที่พบให้ชัดเจน"});
     }
@@ -376,8 +393,14 @@ function Wizard({profile,onSaved}){
               <div><h4>อาการเสีย <span className="req">*</span></h4><p>เลือกอาการที่ใกล้เคียงกับเหตุการณ์จริงมากที่สุด</p></div>
               <span className="choice-count mono">{machineProblems.length} รายการ</span>
             </div>
-            {!machineProblems.length?<Empty title="ยังไม่มีอาการเสียสำหรับเครื่องนี้" text="Admin ยังไม่ได้กำหนด Problem ให้เครื่องนี้ จึงไม่มีตัวเลือก"/>:<><div className="field"><SearchSelect className="professional-select" value={form.problem_id} onChange={v=>setForm(f=>({...f,problem_id:v,symptom:""}))} placeholder="เลือกอาการเสีย" searchPlaceholder="พิมพ์ค้นหา เช่น Vacuum / Sensor / Heater / Clamp…" options={orderedMachineProblems.filter(p=>p.problem_code!=="VFM999").map(p=>({value:p.id,label:p.problem_name,sub:p.breakdown_type||""}))}/></div><div className="controlled-master-note"><b>หาอาการไม่เจอ?</b><span>แจ้ง Engineer / Admin เพื่อเพิ่มรายการมาตรฐานให้เครื่องนี้ ช่างยังไม่สามารถเพิ่มอาการเองได้</span></div></>}
-            {(selectedProblem||form.problem_id)&&<div className="selected-preview-card accent"><span>อาการที่เลือก</span><b>{selectedProblem?.problem_name||"-"}</b>{selectedProblem?.breakdown_type&&<small>{selectedProblem.breakdown_type}</small>}</div>}
+            {!machineProblems.length?<Empty title="ยังไม่มีอาการเสียสำหรับเครื่องนี้" text="Admin ยังไม่ได้กำหนด Problem ให้เครื่องนี้ จึงไม่มีตัวเลือก"/>:isVacuumFormingMachine?<>
+              <div className="problem-system-label"><b>1. เลือกระบบที่มีปัญหา</b><span>รายการถูกจัดกลุ่มใหม่เพื่อลดคำซ้ำและหาได้เร็วบนมือถือ</span></div>
+              <div className="problem-system-grid">{vacuumSystemOptions.map(x=><button type="button" key={x.key} className={`problem-system-card ${form.problem_system===x.key?"active":""}`} onClick={()=>setForm(f=>({...f,problem_system:x.key,problem_id:"",symptom:""}))}><b>{x.label}</b><span>{x.sub}</span><small>{x.count} อาการ</small></button>)}</div>
+              <div className="problem-system-label second"><b>2. เลือกอาการเสีย</b><span>{form.problem_system?`แสดงเฉพาะ ${VACUUM_PROBLEM_SYSTEMS.find(x=>x.key===form.problem_system)?.label||"ระบบที่เลือก"}`:"เลือกระบบด้านบนก่อน"}</span></div>
+              <div className="field"><SearchSelect className="professional-select" value={form.problem_id} onChange={v=>setForm(f=>({...f,problem_id:v,symptom:""}))} disabled={!form.problem_system} placeholder={form.problem_system?"เลือกอาการเสีย":"เลือกระบบที่มีปัญหาก่อน"} searchPlaceholder="พิมพ์ค้นหาอาการในระบบนี้…" options={visibleVacuumProblems.map(p=>({value:p.id,label:p.problem_name,sub:p.breakdown_type||""}))}/></div>
+              <div className="controlled-master-note"><b>หาอาการไม่เจอ?</b><span>แจ้ง Engineer / Admin เพื่อเพิ่ม Master ให้ถูกระบบ ช่างยังไม่สามารถเพิ่มอาการเองได้</span></div>
+            </>:<><div className="field"><SearchSelect className="professional-select" value={form.problem_id} onChange={v=>setForm(f=>({...f,problem_id:v,symptom:""}))} placeholder="เลือกอาการเสีย" searchPlaceholder="พิมพ์ค้นหาอาการเสีย…" options={orderedMachineProblems.filter(p=>p.problem_code!=="VFM999").map(p=>({value:p.id,label:p.problem_name,sub:p.breakdown_type||""}))}/></div><div className="controlled-master-note"><b>หาอาการไม่เจอ?</b><span>แจ้ง Engineer / Admin เพื่อเพิ่มรายการมาตรฐานให้เครื่องนี้ ช่างยังไม่สามารถเพิ่มอาการเองได้</span></div></>}
+            {(selectedProblem||form.problem_id)&&<div className="selected-preview-card accent"><span>อาการที่เลือก</span><b>{selectedProblem?.problem_name||"-"}</b>{isVacuumFormingMachine&&form.problem_system&&<small>{VACUUM_PROBLEM_SYSTEMS.find(x=>x.key===form.problem_system)?.label||selectedProblem?.breakdown_type||""}</small>}{!isVacuumFormingMachine&&selectedProblem?.breakdown_type&&<small>{selectedProblem.breakdown_type}</small>}</div>}
           </section>
         </div>:<div className="field-grid cols-2"><div className="field"><label>จุดที่เสีย</label><input className="input" value={form.area_point_text} onChange={e=>patch("area_point_text",e.target.value)} placeholder="เช่น Loading / Heater / Clamp"/></div><div className="field full"><label>อาการเสีย <span className="req">*</span></label><textarea className="textarea" value={form.symptom} onChange={e=>patch("symptom",e.target.value)} placeholder="อธิบายอาการที่พบ"/></div></div>}
       </>}

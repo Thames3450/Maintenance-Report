@@ -61,6 +61,7 @@ export function SearchSelect({
   labelKey="label", valueKey="value", subKey="sub", disabled=false, searchable=true, className=""
 }){
   const [open,setOpen]=useState(false),[query,setQuery]=useState("");
+  const [searchReady,setSearchReady]=useState(false);
   const [mobileMode,setMobileMode]=useState(()=>typeof window!=="undefined"&&window.matchMedia?.("(max-width:599px)").matches);
   const root=useRef(null);
   const normalized=options.map(o=>typeof o==="string"?{value:o,label:o}:o);
@@ -84,6 +85,15 @@ export function SearchSelect({
     return()=>{document.removeEventListener("mousedown",close);document.removeEventListener("keydown",esc)};
   },[]);
   useEffect(()=>{
+    if(!open){setSearchReady(false);return;}
+    // On phones, keep the search input inert for a short moment after the sheet opens.
+    // This prevents the same tap that opened the selector from focusing the newly mounted input
+    // and popping up the virtual keyboard. The keyboard will appear only after the user taps Search.
+    const delay=mobileMode?420:0;
+    const timer=window.setTimeout(()=>setSearchReady(true),delay);
+    return()=>window.clearTimeout(timer);
+  },[open,mobileMode]);
+  useEffect(()=>{
     if(!open||!mobileMode)return;
     const body=document.body,html=document.documentElement,scrollY=window.scrollY;
     const prev={position:body.style.position,top:body.style.top,width:body.style.width,overflow:body.style.overflow,htmlOverflow:html.style.overflow};
@@ -101,7 +111,7 @@ export function SearchSelect({
     {open&&<div className="smart-select-overlay" onMouseDown={e=>{if(e.target===e.currentTarget)closeMenu()}}>
       <div className="smart-select-menu" onMouseDown={e=>e.stopPropagation()}>
         <div className="smart-select-sheet-head"><div><span>เลือกข้อมูล</span><b>{placeholder}</b></div><button type="button" className="smart-select-sheet-close" onClick={closeMenu} aria-label="ปิดรายการ"><Icon name="close" size={19}/></button></div>
-        {searchable&&<div className="smart-select-search"><Icon name="search" size={17}/><input autoFocus={!mobileMode} value={query} onChange={e=>setQuery(e.target.value)} placeholder={searchPlaceholder}/>{query&&<button type="button" className="smart-select-clear" onClick={()=>setQuery("")} aria-label="ล้างคำค้นหา">×</button>}</div>}
+        {searchable&&<div className={`smart-select-search ${!searchReady?"opening":""}`}><Icon name="search" size={17}/><input value={query} readOnly={!searchReady} inputMode={searchReady?"search":"none"} onFocus={e=>{if(!searchReady)e.currentTarget.blur()}} onChange={e=>setQuery(e.target.value)} placeholder={searchPlaceholder} aria-label={searchPlaceholder}/>{query&&<button type="button" className="smart-select-clear" onClick={()=>setQuery("")} aria-label="ล้างคำค้นหา">×</button>}</div>}
         <div className="smart-select-options" role="listbox" aria-label={placeholder}>
           {!filtered.length?<div className="smart-select-empty">ไม่พบรายการที่ค้นหา</div>:filtered.map((o,i)=>{
             const v=o[valueKey],active=String(v)===String(value);

@@ -64,8 +64,8 @@ Deno.serve(async(req)=>{
       .select("id,employee_code,role,is_active,auth_user_id")
       .eq("employee_code",employeeCode).maybeSingle();
 
-    if(profileError||!profile||!profile.is_active||profile.role!=="technician")
-      return reply(403,{error:"ไม่พบรหัสพนักงาน หรือบัญชีนี้ไม่มีสิทธิ์เข้าใช้งานส่วนช่าง"});
+    if(profileError||!profile||!profile.is_active||!["technician","supervisor"].includes(profile.role))
+      return reply(403,{error:"ไม่พบรหัสพนักงาน หรือบัญชีนี้ไม่มีสิทธิ์เข้าใช้งานด้วยรหัสพนักงาน"});
 
     const password=await internalPassword(employeeCode);
     let userId=profile.auth_user_id as string|null;

@@ -22,6 +22,10 @@ const TECH_NAV=[
   {key:"spare",label:"ขออะไหล่",icon:"spare"},
   {key:"notify",label:"แจ้งเตือน",icon:"bell"}
 ];
+const SUPERVISOR_NAV=[
+  {key:"history",label:"ประวัติงานซ่อม",icon:"history"},
+  {key:"spare",label:"ประวัติอะไหล่",icon:"spare"}
+];
 const ADMIN_NAV=[
   {key:"home",label:"Command Center",sub:"ศูนย์ควบคุม",icon:"dashboard",group:"CONTROL"},
   {key:"work",label:"Work Board",sub:"กระดานมอบหมายงาน",icon:"checklist",group:"CONTROL"},
@@ -53,10 +57,10 @@ function Login({notice=""}){
   }
   return <div className="auth-page"><div className="auth-card">
     <div className="auth-brand"><div className="auth-mark"><Icon name="repair" size={30}/></div><div><h1>MVR Smart Maintenance</h1><small>MAINTENANCE MANAGEMENT SYSTEM</small></div></div>
-    <div className="auth-tabs"><button type="button" className={mode==="technician"?"active":""} onClick={()=>{setMode("technician");setError("")}}>ช่างซ่อมบำรุง</button><button type="button" className={mode==="admin"?"active":""} onClick={()=>{setMode("admin");setError("")}}>ผู้ดูแลระบบ</button></div>
-    <span className="auth-badge">{mode==="technician"?"ใช้รหัสพนักงานเพียงอย่างเดียว":"บัญชีผู้ดูแลระบบ"}</span>
-    <h2 className="auth-title">{mode==="technician"?"เริ่มงานได้ทันที":"Admin Control Center"}</h2>
-    <p className="auth-desc">{mode==="technician"?"กรอกรหัสพนักงาน ระบบจะตรวจสอบสิทธิ์ Technician + Active และเข้าสู่ระบบให้อัตโนมัติ":"เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านของ Admin"}</p>
+    <div className="auth-tabs"><button type="button" className={mode==="technician"?"active":""} onClick={()=>{setMode("technician");setError("")}}>รหัสพนักงาน</button><button type="button" className={mode==="admin"?"active":""} onClick={()=>{setMode("admin");setError("")}}>ผู้ดูแลระบบ</button></div>
+    <span className="auth-badge">{mode==="technician"?"Technician / Supervisor":"บัญชีผู้ดูแลระบบ"}</span>
+    <h2 className="auth-title">{mode==="technician"?"เข้าสู่ระบบด้วยรหัสพนักงาน":"Admin Control Center"}</h2>
+    <p className="auth-desc">{mode==="technician"?"ช่างและหัวหน้างานใช้รหัสพนักงาน ระบบจะเปิดเมนูตามสิทธิ์โดยอัตโนมัติ":"เข้าสู่ระบบด้วยชื่อผู้ใช้และรหัสผ่านของ Admin"}</p>
     <form onSubmit={submit}>
       <label>{mode==="technician"?"รหัสพนักงาน":"ชื่อผู้ใช้"}</label>
       <input className={`auth-input ${mode==="technician"?"mono":""}`} value={code} onChange={e=>setCode(e.target.value)} inputMode={mode==="technician"?"numeric":"text"} autoComplete={mode==="admin"?"username":"off"} placeholder={mode==="technician"?"กรอกรหัสพนักงาน":"ชื่อผู้ใช้"}/>
@@ -146,15 +150,15 @@ export default function App(){
     });
     return()=>{ok=false}
   },[session?.user?.id]);
-  const admin=profile?.role==="admin";const allowed=useMemo(()=>admin?ADMIN_NAV:TECH_NAV,[admin]);
-  useEffect(()=>{if(profile&&!allowed.some(n=>n.key===route))go(admin?"home":"repair")},[profile,route,admin]);
+  const admin=profile?.role==="admin",supervisor=profile?.role==="supervisor";const allowed=useMemo(()=>supervisor?SUPERVISOR_NAV:(admin?ADMIN_NAV:TECH_NAV),[admin,supervisor]);
+  useEffect(()=>{if(profile&&!allowed.some(n=>n.key===route))go(admin?"home":supervisor?"history":"repair")},[profile,route,admin,supervisor,allowed]);
   async function logout(){await signOut();location.hash=""}
   if(!isConfigured)return <div className="state"><div className="state-box"><h3>ยังไม่ได้ตั้งค่า Supabase</h3><p>ไม่พบค่าการเชื่อมต่อใน <span className="mono">.env</span></p></div></div>;
   if(session===undefined)return <Loading text="กำลังตรวจสอบเซสชัน…"/>;
   if(!session)return <Login notice={authNotice}/>;
   if(error)return <ErrorState message={error}/>;
   if(!profile)return <Loading text="กำลังโหลดสิทธิ์ผู้ใช้งาน…"/>;
-  const safeRoute=admin?route:(["repair","history","pm","spare","notify"].includes(route)?route:"repair");
+  const safeRoute=admin?route:supervisor?(["history","spare"].includes(route)?route:"history"):(["repair","history","pm","spare","notify"].includes(route)?route:"repair");
   const View=(safeRoute==="repair"||safeRoute==="history")?RepairModule:safeRoute==="pm"?PMModule:safeRoute==="kpi"?KPIModule:safeRoute==="admin"?AdminModule:safeRoute==="work"?WorkBoard:safeRoute==="team"?TeamManagement:safeRoute==="mywork"?MyWorkspace:safeRoute==="spare"?SpareRequests:safeRoute==="notify"?NotificationsModule:null;
   if(admin){
     return <div className="page admin-portal admin-shell">
@@ -165,7 +169,7 @@ export default function App(){
       </div><div id="toast-root"/>
     </div>;
   }
-  return <div className="page tech-portal"><header className="topbar"><button className="brand" onClick={()=>go("repair")} style={{border:0,background:"transparent",padding:0,cursor:"pointer"}}><span className="brand-mark"><Icon name="repair" size={28}/></span><span className="brand-text"><span className="brand-title">MVR Smart Maintenance</span><span className="brand-sub">MAINTENANCE SYSTEM</span></span></button><nav className="desktop-nav">{allowed.map(n=><button key={n.key} className={safeRoute===n.key?"active":""} onClick={()=>go(n.key)}><Icon name={n.icon} size={20}/><span>{n.label}</span></button>)}</nav><div className="top-actions"><div className="user-chip"><div className="avatar">{profile.full_name?.trim()?.slice(0,1)||"?"}</div><div><div className="user-name">{profile.full_name}</div><div className="user-meta">Technician · {profile.departments?.dept_code||"-"}{profile.shift?` · ${profile.shift}`:""}</div></div></div><button className="icon-btn" onClick={logout} aria-label="ออกจากระบบ"><Icon name="logout" size={18}/></button></div></header>
+  return <div className="page tech-portal"><header className="topbar"><button className="brand" onClick={()=>go(supervisor?"history":"repair")} style={{border:0,background:"transparent",padding:0,cursor:"pointer"}}><span className="brand-mark"><Icon name="repair" size={28}/></span><span className="brand-text"><span className="brand-title">MVR Smart Maintenance</span><span className="brand-sub">MAINTENANCE SYSTEM</span></span></button><nav className="desktop-nav">{allowed.map(n=><button key={n.key} className={safeRoute===n.key?"active":""} onClick={()=>go(n.key)}><Icon name={n.icon} size={20}/><span>{n.label}</span></button>)}</nav><div className="top-actions"><div className="user-chip"><div className="avatar">{profile.full_name?.trim()?.slice(0,1)||"?"}</div><div><div className="user-name">{profile.full_name}</div><div className="user-meta">{supervisor?"Supervisor":"Technician"} · {profile.departments?.dept_code||"-"}{profile.shift?` · ${profile.shift}`:""}</div></div></div><button className="icon-btn" onClick={logout} aria-label="ออกจากระบบ"><Icon name="logout" size={18}/></button></div></header>
   <main className="content"><View profile={profile} go={go} viewMode={safeRoute==="history"?"history":safeRoute==="repair"?"wizard":undefined}/></main>
   <nav className="bottom-nav">{allowed.map(n=><button key={n.key} className={safeRoute===n.key?"active":""} onClick={()=>go(n.key)}><span className="nav-ico"><Icon name={n.icon} size={18}/></span><span>{n.label}</span></button>)}</nav><div id="toast-root"/></div>;
 

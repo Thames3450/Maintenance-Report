@@ -926,3 +926,14 @@ button.settings-item-card:hover,.settings-item-card:focus-within{border-color:#A
 
 /* v2.35 spare request desktop upload + owner edit/delete */
 .spare-photo-slot{display:grid;gap:6px;min-width:0}.spare-photo-input{position:relative;overflow:hidden;min-width:0}.spare-photo-input .spare-native-file{display:block!important;position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}.spare-photo-slot.marked-remove .spare-photo-input{opacity:.55;border-color:#efb7bd;background:#fff7f8}.spare-photo-remove{min-height:30px;border:1px solid #e2e7ee;border-radius:9px;background:#fff;color:#8b5560;font-size:8.5px;font-weight:700;cursor:pointer}.spare-photo-remove.active{border-color:#efb7bd;background:#fff0f2;color:#b92f42}.spare-card-actions .danger-mini{border-color:#efc1c7!important;background:#fff6f7!important;color:#b83246!important}.spare-card-actions .danger-mini:disabled{opacity:.45;cursor:not-allowed}
+
+/* v2.35.1 · Spare Request edit photo preview */
+.spare-edit-photo-preview{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:1px}
+.spare-edit-photo-preview>a{position:relative;display:block;min-width:0;aspect-ratio:4/3;border:1px solid #dce3ec;border-radius:11px;overflow:hidden;background:#f5f7fa;text-decoration:none}
+.spare-edit-photo-preview img{display:block;width:100%;height:100%;object-fit:cover}
+.spare-edit-photo-preview>a>span{position:absolute;left:6px;bottom:6px;max-width:calc(100% - 12px);padding:3px 6px;border-radius:999px;background:rgba(18,28,48,.78);color:#fff;font-size:7.5px;font-weight:750;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spare-edit-photo-preview>a.pending-remove{border-color:#efb7bd}
+.spare-edit-photo-preview>a.pending-remove img{opacity:.35;filter:grayscale(.6)}
+.spare-edit-photo-preview>a.pending-remove>span{background:rgba(183,47,66,.88)}
+.spare-photo-fallback{height:100%;display:grid;place-items:center;color:#9ca7b5;background:#f7f9fb}
+@media(max-width:759px){.spare-edit-photo-preview{grid-template-columns:repeat(3,minmax(0,1fr))}}

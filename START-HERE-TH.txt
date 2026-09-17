@@ -1,10 +1,10 @@
-MVR Smart Maintenance v2.6 — Final Modern Minimal UI
+MVR Smart Maintenance v2.36.1 — Maintenance Core (No KPI)
 
-เวอร์ชันนี้เชื่อมกับ Supabase โปรเจกต์ MPR Maintenance ตาม .env ที่ให้ไว้แล้ว
+เวอร์ชันนี้เป็นเว็บ Maintenance หลัก โดยแยก KPI ออกไปทำเป็นเว็บอีกตัวต่างหาก และเชื่อมกับ Supabase โปรเจกต์ MPR Maintenance ตาม .env ที่ให้ไว้แล้ว
 
 บทบาทแยกชัดเจน:
 - Technician: กรอกรายงาน / ประวัติ / งาน PM เท่านั้น
-- Admin: Dashboard / รายงานซ่อม / PM-TPM / KPI / จัดการระบบ
+- Admin: Command Center / Work Board / รายงานซ่อม / Spare Request / PM-TPM / จัดการระบบ
 
 อัปเดตหลัก:
 - History Desktop Table แบบ Premium

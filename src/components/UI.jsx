@@ -5,7 +5,6 @@ const iconFiles = Object.freeze({
   home:"House-Chimney-1--Streamline-Ultimate.png",
   repair:"Hammer-Wrench--Streamline-Ultimate.png",
   pm:"Calendar-Check-1--Streamline-Ultimate.png",
-  kpi:"Performance-Increase-2--Streamline-Ultimate.png",
   admin:"Cog-3--Streamline-Ultimate.png",
   logout:"Logout--Streamline-Ultimate.png",
   plus:"List-Add--Streamline-Ultimate.png",

@@ -6,7 +6,6 @@ import {
 import { Icon, Loading, ErrorState } from "./components/UI.jsx";
 import RepairModule from "../repair.js";
 import PMModule from "../pm.js";
-import KPIModule from "../kpi.js";
 import AdminModule from "../admin.js";
 import CommandCenter from "./modules/command_center.jsx";
 import WorkBoard from "./modules/work_board.jsx";
@@ -34,7 +33,6 @@ const ADMIN_NAV=[
   {key:"repair",label:"Repair Reports",sub:"รายงานซ่อม",icon:"report",group:"MAINTENANCE"},
   {key:"spare",label:"Spare Requests",sub:"รวบรวมความต้องการอะไหล่",icon:"spare",group:"MAINTENANCE"},
   {key:"pm",label:"PM / TPM",sub:"แผนบำรุงรักษา",icon:"pm",group:"MAINTENANCE"},
-  {key:"kpi",label:"Analytics / KPI",sub:"วิเคราะห์ประสิทธิภาพ",icon:"kpi",group:"ANALYTICS"},
   {key:"notify",label:"Notifications",sub:"การแจ้งเตือนมือถือ",icon:"bell",group:"SYSTEM"},
   {key:"admin",label:"System Settings",sub:"ตั้งค่าระบบ",icon:"admin",group:"SYSTEM"}
 ];
@@ -97,8 +95,7 @@ function Home({profile,go}){
   const cards=admin?[
     ["repair","รายงานซ่อม","ดู ค้นหา แก้ไข และติดตามงานซ่อมทุกแผนก","report"],
     ["admin","เครื่องจักรและทีมช่าง","จัดการเครื่อง กลุ่มเครื่อง ช่าง และทีมตามแผนก","team"],
-    ["pm","แผน PM / TPM","วางแผนและตรวจติดตามงาน Preventive Maintenance","pm"],
-    ["kpi","KPI และรายงาน","Downtime, MTTR, MTBF, Availability และ Pareto","kpi"]
+    ["pm","แผน PM / TPM","วางแผนและตรวจติดตามงาน Preventive Maintenance","pm"]
   ]:[
     ["repair","กรอกรายงานซ่อม","เลือกกลุ่มเครื่อง → Machine No. → ปัญหา → รายละเอียด","report"],
     ["pm","งาน PM / TPM","ดูงานวันนี้ สัปดาห์ เดือน ปี และทำ Checklist","pm"]
@@ -114,8 +111,8 @@ function Home({profile,go}){
 
 
 function AdminSidebar({route,profile,go,logout,open,onClose}){
-  const groups=["CONTROL","PEOPLE","MAINTENANCE","ANALYTICS","SYSTEM"];
-  const groupThai={CONTROL:"ควบคุมงาน",PEOPLE:"คนและงานของฉัน",MAINTENANCE:"งานซ่อมบำรุง",ANALYTICS:"วิเคราะห์",SYSTEM:"ระบบ"};
+  const groups=["CONTROL","PEOPLE","MAINTENANCE","SYSTEM"];
+  const groupThai={CONTROL:"ควบคุมงาน",PEOPLE:"คนและงานของฉัน",MAINTENANCE:"งานซ่อมบำรุง",SYSTEM:"ระบบ"};
   return <>
     <button className={`admin-sidebar-backdrop ${open?"show":""}`} onClick={onClose} aria-label="ปิดเมนู"/>
     <aside className={`admin-sidebar ${open?"open":""}`}>
@@ -159,7 +156,7 @@ export default function App(){
   if(error)return <ErrorState message={error}/>;
   if(!profile)return <Loading text="กำลังโหลดสิทธิ์ผู้ใช้งาน…"/>;
   const safeRoute=admin?route:supervisor?(["history","spare"].includes(route)?route:"history"):(["repair","history","pm","spare","notify"].includes(route)?route:"repair");
-  const View=(safeRoute==="repair"||safeRoute==="history")?RepairModule:safeRoute==="pm"?PMModule:safeRoute==="kpi"?KPIModule:safeRoute==="admin"?AdminModule:safeRoute==="work"?WorkBoard:safeRoute==="team"?TeamManagement:safeRoute==="mywork"?MyWorkspace:safeRoute==="spare"?SpareRequests:safeRoute==="notify"?NotificationsModule:null;
+  const View=(safeRoute==="repair"||safeRoute==="history")?RepairModule:safeRoute==="pm"?PMModule:safeRoute==="admin"?AdminModule:safeRoute==="work"?WorkBoard:safeRoute==="team"?TeamManagement:safeRoute==="mywork"?MyWorkspace:safeRoute==="spare"?SpareRequests:safeRoute==="notify"?NotificationsModule:null;
   if(admin){
     return <div className="page admin-portal admin-shell">
       <AdminSidebar route={safeRoute} profile={profile} go={go} logout={logout} open={sidebarOpen} onClose={()=>setSidebarOpen(false)}/>

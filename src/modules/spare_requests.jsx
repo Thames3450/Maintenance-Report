@@ -97,8 +97,9 @@ export default function SpareRequests({profile}){
   const [loading,setLoading]=useState(true),[error,setError]=useState(""),[msg,setMsg]=useState(""),[departments,setDepartments]=useState([]),[machines,setMachines]=useState([]),[requests,setRequests]=useState([]),[batches,setBatches]=useState([]),[tableReady,setTableReady]=useState(true);
   const [scope,setScope]=useState("all"),[status,setStatus]=useState("active"),[query,setQuery]=useState(""),[tab,setTab]=useState("requests"),[techView,setTechView]=useState("mine"),[editor,setEditor]=useState(null),[busy,setBusy]=useState(false),[selected,setSelected]=useState(new Set()),[batchNote,setBatchNote]=useState(""),[detail,setDetail]=useState(null),[detailImages,setDetailImages]=useState([]),[detailLoading,setDetailLoading]=useState(false),[saveStage,setSaveStage]=useState("");
 
-  async function load(){
-    setLoading(true);setError("");
+  async function load(options={}){
+    const silent=options===true||options?.silent===true;
+    if(!silent)setLoading(true);setError("");
     try{
       const sb=requireSupabase();
       const [d,m]=await Promise.all([
@@ -112,7 +113,7 @@ export default function SpareRequests({profile}){
         if(admin){const bq=await sb.from("spare_request_batches").select("*").order("created_at",{ascending:false}).limit(200);if(bq.error)throw bq.error;setBatches(bq.data||[])}
       }
       setDepartments(d.data||[]);setMachines(m.data||[]);
-    }catch(e){setError(e.message||"โหลดรายการอะไหล่ไม่สำเร็จ")}finally{setLoading(false)}
+    }catch(e){setError(e.message||"โหลดรายการอะไหล่ไม่สำเร็จ")}finally{if(!silent)setLoading(false)}
   }
   useEffect(()=>{load()},[]);
 
@@ -226,7 +227,7 @@ export default function SpareRequests({profile}){
       dispatchMaintenanceNotification("spare_request_created",data.id).catch(()=>{});
       setEditor(null);
       setMsg(imageResult.failed.length?`บันทึกรายการแล้ว แต่มีรูป ${imageResult.failed.length} รูปที่อัปโหลดไม่สำเร็จ สามารถเข้าแก้ไขแล้วแนบใหม่ได้`:"ส่งรายการอะไหล่เรียบร้อย");
-      await load();
+      await load({silent:true});
     }catch(e){setMsg(e.message||"บันทึกรายการไม่สำเร็จ")}finally{setBusy(false);setSaveStage("")}
   }
 
@@ -240,7 +241,7 @@ export default function SpareRequests({profile}){
       setSaveStage(photoCount?`บันทึกข้อมูลแล้ว · กำลังอัปโหลดรูป 0/${photoCount}…`:"บันทึกข้อมูลแล้ว · กำลังจัดการรูป…");
       const imageResult=await syncEditImages(editor.id,editor,(done,total)=>setSaveStage(`บันทึกข้อมูลแล้ว · กำลังอัปโหลดรูป ${done}/${total}…`));
       if(["sent","follow_up","closed"].includes(payload.status))dispatchMaintenanceNotification("spare_request_status",editor.id).catch(()=>{});
-      setEditor(null);setMsg(imageResult.failed.length?`บันทึกข้อมูลแล้ว แต่มีรูป ${imageResult.failed.length} รูปที่อัปโหลดไม่สำเร็จ`:"บันทึกการตรวจสอบเรียบร้อย");await load();
+      setEditor(null);setMsg(imageResult.failed.length?`บันทึกข้อมูลแล้ว แต่มีรูป ${imageResult.failed.length} รูปที่อัปโหลดไม่สำเร็จ`:"บันทึกการตรวจสอบเรียบร้อย");await load({silent:true});
     }catch(e){setMsg(e.message||"บันทึกไม่สำเร็จ")}finally{setBusy(false);setSaveStage("")}
   }
 
@@ -253,7 +254,7 @@ export default function SpareRequests({profile}){
       const photoCount=Object.values(editor.files||{}).filter(Boolean).length;
       setSaveStage(photoCount?`บันทึกข้อมูลแล้ว · กำลังอัปโหลดรูป 0/${photoCount}…`:"บันทึกข้อมูลแล้ว · กำลังจัดการรูป…");
       const imageResult=await syncEditImages(editor.id,editor,(done,total)=>setSaveStage(`บันทึกข้อมูลแล้ว · กำลังอัปโหลดรูป ${done}/${total}…`));
-      setEditor(null);setMsg(imageResult.failed.length?`แก้ไขข้อมูลแล้ว แต่มีรูป ${imageResult.failed.length} รูปที่อัปโหลดไม่สำเร็จ`:"แก้ไขรายการอะไหล่เรียบร้อย");await load();
+      setEditor(null);setMsg(imageResult.failed.length?`แก้ไขข้อมูลแล้ว แต่มีรูป ${imageResult.failed.length} รูปที่อัปโหลดไม่สำเร็จ`:"แก้ไขรายการอะไหล่เรียบร้อย");await load({silent:true});
     }catch(e){setMsg(e.message||"แก้ไขรายการไม่สำเร็จ")}finally{setBusy(false);setSaveStage("")}
   }
 
@@ -264,21 +265,29 @@ export default function SpareRequests({profile}){
       const sb=requireSupabase(),imgs=await loadRequestImages(r.id);
       if(imgs.length)await removeImageRecords(imgs);
       const {error}=await sb.from("spare_requests").delete().eq("id",r.id).eq("requester_profile_id",profile.id);if(error)throw error;
-      setDetail(null);setDetailImages([]);setMsg("ลบรายการอะไหล่เรียบร้อย");await load();
+      setDetail(null);setDetailImages([]);setMsg("ลบรายการอะไหล่เรียบร้อย");await load({silent:true});
     }catch(e){setMsg(e.message||"ลบรายการไม่สำเร็จ")}finally{setBusy(false)}
   }
 
   async function quickStatus(id,next){
-    setMsg("");try{const {error}=await requireSupabase().from("spare_requests").update({status:next,reviewed_by:profile.id}).eq("id",id);if(error)throw error;if(["sent","follow_up","closed"].includes(next))dispatchMaintenanceNotification("spare_request_status",id).catch(()=>{});await load()}catch(e){setMsg(e.message||"อัปเดตสถานะไม่สำเร็จ")}
+    setMsg("");
+    try{
+      const {data,error}=await requireSupabase().from("spare_requests").update({status:next,reviewed_by:profile.id}).eq("id",id).select("*").single();
+      if(error)throw error;
+      if(data)setRequests(prev=>prev.map(r=>r.id===id?data:r));
+      if(detail?.id===id&&data)setDetail(data);
+      if(["sent","follow_up","closed"].includes(next))dispatchMaintenanceNotification("spare_request_status",id).catch(()=>{});
+      setMsg(`อัปเดตสถานะเป็น “${statusLabel(next)}” แล้ว`);
+    }catch(e){setMsg(e.message||"อัปเดตสถานะไม่สำเร็จ")}
   }
   function toggleSelected(id){setSelected(prev=>{const n=new Set(prev);n.has(id)?n.delete(id):n.add(id);return n})}
   async function createBatch(){
     if(!selected.size)return;setBusy(true);setMsg("");
-    try{const {data,error}=await requireSupabase().rpc("create_spare_request_batch",{p_request_ids:[...selected],p_note:batchNote.trim()||null});if(error)throw error;setSelected(new Set());setBatchNote("");setMsg("สร้างรอบรวบรวมเรียบร้อย");await load();setTab("batches");return data}catch(e){setMsg(e.message||"สร้างรอบรวบรวมไม่สำเร็จ")}finally{setBusy(false)}
+    try{const {data,error}=await requireSupabase().rpc("create_spare_request_batch",{p_request_ids:[...selected],p_note:batchNote.trim()||null});if(error)throw error;setSelected(new Set());setBatchNote("");setMsg("สร้างรอบรวบรวมเรียบร้อย");await load({silent:true});setTab("batches");return data}catch(e){setMsg(e.message||"สร้างรอบรวบรวมไม่สำเร็จ")}finally{setBusy(false)}
   }
   async function markBatchSent(id){
     if(!confirm("ยืนยันว่าได้ส่งไฟล์รอบนี้ให้ฝ่ายจัดซื้อแล้ว?"))return;setMsg("");
-    try{const {error}=await requireSupabase().rpc("mark_spare_request_batch_sent",{p_batch_id:id});if(error)throw error;dispatchMaintenanceNotification("spare_batch_sent",id).catch(()=>{});setMsg("ทำเครื่องหมายส่งจัดซื้อแล้วเรียบร้อย");await load()}catch(e){setMsg(e.message||"อัปเดตรอบส่งไม่สำเร็จ")}
+    try{const {error}=await requireSupabase().rpc("mark_spare_request_batch_sent",{p_batch_id:id});if(error)throw error;dispatchMaintenanceNotification("spare_batch_sent",id).catch(()=>{});setMsg("ทำเครื่องหมายส่งจัดซื้อแล้วเรียบร้อย");await load({silent:true})}catch(e){setMsg(e.message||"อัปเดตรอบส่งไม่สำเร็จ")}
   }
   function exportBatch(batch){
     const items=requests.filter(r=>r.batch_id===batch.id);const header=["No.","Department","Machine","Part Name","Part No.","Specification","Qty","Unit","Level","Reason","Requester","Shift","Source","Request Date","Remark","Admin Note"];

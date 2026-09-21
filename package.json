@@ -1,7 +1,7 @@
 {
   "name": "mvr-smart-maintenance",
   "private": true,
-  "version": "2.37.1",
+  "version": "2.37.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

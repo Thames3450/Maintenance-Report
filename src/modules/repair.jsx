@@ -27,6 +27,7 @@ function blankForm(){
   return {
     repair_date:localDateISO(), group_id:"", machine_id:"", area_point_id:"", area_point_text:"",
     problem_id:"", problem_system:"", symptom:"", problem_type:"", cause_id:"", cause:"", action_id:"", action_taken:"",
+    ij_zone_code:"", ij_component_code:"", ij_symptom_code:"", ij_mold_model:"",
     severity:"medium", status:"", start_time:new Date().toTimeString().slice(0,5), end_time:"",
     spare_parts:"", remark:""
   };
@@ -171,6 +172,7 @@ function Wizard({profile,onSaved}){
   const [problems,setProblems]=useState([]);
   const [causes,setCauses]=useState([]);
   const [actions,setActions]=useState([]);
+  const [ijZones,setIjZones]=useState([]),[ijComponents,setIjComponents]=useState([]),[ijSymptoms,setIjSymptoms]=useState([]);
   const [machineProblemMap,setMachineProblemMap]=useState([]),[machineCauseMap,setMachineCauseMap]=useState([]),[machineActionMap,setMachineActionMap]=useState([]);
   const [loading,setLoading]=useState(true),[error,setError]=useState("");
   const [query,setQuery]=useState("");
@@ -193,22 +195,26 @@ function Wizard({profile,onSaved}){
     setLoading(true);setError("");
     try{
       const sb=requireSupabase();
-      const [d,g,m,p,pr,c,a,lpm,lcm,lam]=await Promise.all([
+      const [d,g,m,p,pr,c,a,lpm,lcm,lam,ijz,ijc,ijs]=await Promise.all([
         sb.from("departments").select("id,dept_code,dept_name,free_text_entry,free_text_machine_problem,free_text_cause_action,require_image,required_image_types").eq("id",profile.department_id).single(),
         sb.from("machine_groups").select("id,department_id,group_code,group_name,sort_order,is_active").eq("is_active",true).order("sort_order").order("group_name"),
-        sb.from("machines").select("id,department_id,machine_group_id,machine_no,machine_name,production_line,line_id,is_active,photo_path").eq("is_active",true).order("machine_no"),
+        sb.from("machines").select("id,department_id,machine_group_id,machine_no,machine_name,production_line,line_id,equipment_type,is_active,photo_path").eq("is_active",true).order("machine_no"),
         sb.from("area_points").select("id,machine_id,point_code,point_name,is_active").eq("is_active",true).order("point_name"),
         sb.from("problems").select("id,problem_code,problem_name,breakdown_type,department_code,system_group,symptom_sort_order,is_active").eq("is_active",true).order("problem_name"),
         sb.from("causes").select("id,cause_code,cause_name,category,department_code,is_active").eq("is_active",true).order("cause_name"),
         sb.from("actions").select("id,action_code,action_name,department_code,is_active").eq("is_active",true).order("action_name"),
         sb.from("machine_problem_map").select("machine_id,problem_id"),
         sb.from("machine_cause_map").select("machine_id,cause_id"),
-        sb.from("machine_action_map").select("machine_id,action_id")
+        sb.from("machine_action_map").select("machine_id,action_id"),
+        sb.from("ij_maintenance_zones").select("code,name_en,name_th,sort_order,active").eq("active",true).order("sort_order"),
+        sb.from("ij_maintenance_components").select("code,zone_code,name_en,name_th,sort_order,active").eq("active",true).order("sort_order"),
+        sb.from("ij_maintenance_symptoms").select("code,name_en,name_th,sort_order,requires_mold_model,active").eq("active",true).order("sort_order")
       ]);
-      for(const x of [d,g,m,p,pr,c,a,lpm,lcm,lam])if(x.error)throw x.error;
+      for(const x of [d,g,m,p,pr,c,a,lpm,lcm,lam,ijz,ijc,ijs])if(x.error)throw x.error;
       setDepartment(d.data);setGroups(g.data||[]);setMachines(m.data||[]);setPoints(p.data||[]);
       setProblems(pr.data||[]);setCauses(c.data||[]);setActions(a.data||[]);
       setMachineProblemMap(lpm.data||[]);setMachineCauseMap(lcm.data||[]);setMachineActionMap(lam.data||[]);
+      setIjZones(ijz.data||[]);setIjComponents(ijc.data||[]);setIjSymptoms(ijs.data||[]);
       const imagePaths=[...new Set((m.data||[]).map(x=>x.photo_path).filter(Boolean))],imageUrls={};
       await Promise.all(imagePaths.map(async path=>{imageUrls[path]=await signedImageUrl(path,1200)}));
       setMachinePhotoUrls(imageUrls);
@@ -227,8 +233,8 @@ function Wizard({profile,onSaved}){
   },[machines.length]);
 
   function patch(k,v){setMessage("");setForm(f=>({...f,[k]:v}))}
-  function chooseGroup(id){setValidationIssues([]);setForm(f=>({...f,group_id:id,machine_id:"",area_point_id:"",problem_id:"",problem_system:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(2)}
-  function chooseMachine(id){setValidationIssues([]);setForm(f=>({...f,machine_id:id,area_point_id:"",problem_id:"",problem_system:"",symptom:"",cause_id:"",action_id:""}));setQuery("");setStep(3)}
+  function chooseGroup(id){setValidationIssues([]);setForm(f=>({...f,group_id:id,machine_id:"",area_point_id:"",problem_id:"",problem_system:"",symptom:"",cause_id:"",action_id:"",ij_zone_code:"",ij_component_code:"",ij_symptom_code:"",ij_mold_model:""}));setQuery("");setStep(2)}
+  function chooseMachine(id){setValidationIssues([]);setForm(f=>({...f,machine_id:id,area_point_id:"",problem_id:"",problem_system:"",symptom:"",cause_id:"",action_id:"",ij_zone_code:"",ij_component_code:"",ij_symptom_code:"",ij_mold_model:""}));setQuery("");setStep(3)}
 
   const visibleGroups=useMemo(()=>groups.filter(g=>!query||normalizeText(`${g.group_name} ${g.group_code}`).includes(normalizeText(query))),[groups,query]);
   const groupMachines=useMemo(()=>machines.filter(m=>m.machine_group_id===form.group_id&&(!query||normalizeText(`${m.machine_no} ${m.machine_name} ${m.production_line}`).includes(normalizeText(query)))),[machines,form.group_id,query]);
@@ -241,6 +247,12 @@ function Wizard({profile,onSaved}){
   }
   const machineProblems=useMemo(()=>mappedList(problems,machineProblemMap,"problem_id"),[problems,machineProblemMap,selectedMachine?.id]);
   const isVacuumFormingMachine=Boolean(department?.dept_code==="MVR"&&/^(IVF|DVF)/i.test(selectedMachine?.machine_no||""));
+  const isIJInjection=Boolean(department?.dept_code==="IJ"&&selectedMachine?.equipment_type==="injection");
+  const selectedIJZone=useMemo(()=>ijZones.find(x=>x.code===form.ij_zone_code),[ijZones,form.ij_zone_code]);
+  const selectedIJComponent=useMemo(()=>ijComponents.find(x=>x.code===form.ij_component_code),[ijComponents,form.ij_component_code]);
+  const selectedIJSymptom=useMemo(()=>ijSymptoms.find(x=>x.code===form.ij_symptom_code),[ijSymptoms,form.ij_symptom_code]);
+  const visibleIJComponents=useMemo(()=>ijComponents.filter(x=>x.zone_code===form.ij_zone_code),[ijComponents,form.ij_zone_code]);
+  const isIJMaterialLeak=Boolean(isIJInjection&&selectedIJSymptom?.requires_mold_model);
   const orderedMachineProblems=useMemo(()=>[...machineProblems].sort((a,b)=>{
     const sa=Number(a.symptom_sort_order??999),sb=Number(b.symptom_sort_order??999);
     return sa-sb||String(a.problem_name||"").localeCompare(String(b.problem_name||""),"th");
@@ -257,12 +269,19 @@ function Wizard({profile,onSaved}){
     if(n===1&&!form.group_id)issues.push({step:1,label:"ยังไม่ได้เลือกกลุ่มเครื่อง",detail:"เลือกกลุ่มเครื่องจักรก่อน"});
     if(n===2&&!form.machine_id)issues.push({step:2,label:"ยังไม่ได้เลือกหมายเลขเครื่อง",detail:"เลือกเครื่องจริงที่จะบันทึกรายงาน"});
     if(n===3){
-      if(!freeMachineProblem&&!machinePoints.length)issues.push({step:3,label:"เครื่องนี้ยังไม่มีจุดเสีย",detail:"Admin ยังไม่ได้กำหนดจุดเสียให้เครื่องนี้"});
-      else if(!freeMachineProblem&&!form.area_point_id)issues.push({step:3,label:"ยังไม่ได้เลือกจุดที่เสีย",detail:"เลือกจุดเสียจากตัวเลือกของเครื่อง"});
-      if(!freeMachineProblem&&!machineProblems.length)issues.push({step:3,label:"เครื่องนี้ยังไม่มีอาการเสีย",detail:"Admin ยังไม่ได้กำหนด Problem ให้เครื่องนี้"});
-      else if(!freeMachineProblem&&isVacuumFormingMachine&&!form.problem_system)issues.push({step:3,label:"ยังไม่ได้เลือกระบบที่มีปัญหา",detail:"เลือก Vacuum / Heater / Clamp / ระบบอื่นก่อนเลือกอาการ"});
-      else if(!freeMachineProblem&&!form.problem_id)issues.push({step:3,label:"ยังไม่ได้เลือกอาการเสีย",detail:"เลือกอาการเสียจากตัวเลือกของเครื่อง"});
-      if(freeMachineProblem&&!clean(form.symptom))issues.push({step:3,label:"ยังไม่ได้กรอกอาการเสีย",detail:"กรอกอาการที่พบให้ชัดเจน"});
+      if(isIJInjection){
+        if(!form.ij_zone_code)issues.push({step:3,label:"ยังไม่ได้เลือกโซน / ระบบของเครื่อง",detail:"เลือกระบบของเครื่อง Injection ก่อน"});
+        if(!form.ij_component_code)issues.push({step:3,label:"ยังไม่ได้เลือกอุปกรณ์ / จุดเสีย",detail:"เลือก Component ภายในระบบที่เลือก"});
+        if(!form.ij_symptom_code)issues.push({step:3,label:"ยังไม่ได้เลือกอาการเสีย",detail:"เลือกอาการจาก Master ของแผนก IJ"});
+        if(isIJMaterialLeak&&!clean(form.ij_mold_model))issues.push({step:3,label:"Material Leak ต้องระบุโมลที่เกิดการรั่ว",detail:"กรอก รุ่นโมล / Mold No. ของโมลที่ติดตั้งบนเครื่องตอนเกิด Material Leak เช่น M-650-09 หรือ GR-B22 (ไม่ใช่รุ่นเครื่อง Injection)"});
+      }else{
+        if(!freeMachineProblem&&!machinePoints.length)issues.push({step:3,label:"เครื่องนี้ยังไม่มีจุดเสีย",detail:"Admin ยังไม่ได้กำหนดจุดเสียให้เครื่องนี้"});
+        else if(!freeMachineProblem&&!form.area_point_id)issues.push({step:3,label:"ยังไม่ได้เลือกจุดที่เสีย",detail:"เลือกจุดเสียจากตัวเลือกของเครื่อง"});
+        if(!freeMachineProblem&&!machineProblems.length)issues.push({step:3,label:"เครื่องนี้ยังไม่มีอาการเสีย",detail:"Admin ยังไม่ได้กำหนด Problem ให้เครื่องนี้"});
+        else if(!freeMachineProblem&&isVacuumFormingMachine&&!form.problem_system)issues.push({step:3,label:"ยังไม่ได้เลือกระบบที่มีปัญหา",detail:"เลือก Vacuum / Heater / Clamp / ระบบอื่นก่อนเลือกอาการ"});
+        else if(!freeMachineProblem&&!form.problem_id)issues.push({step:3,label:"ยังไม่ได้เลือกอาการเสีย",detail:"เลือกอาการเสียจากตัวเลือกของเครื่อง"});
+        if(freeMachineProblem&&!clean(form.symptom))issues.push({step:3,label:"ยังไม่ได้กรอกอาการเสีย",detail:"กรอกอาการที่พบให้ชัดเจน"});
+      }
     }
     if(n===4){
       if(!freeCauseAction&&!machineCauses.length)issues.push({step:4,label:"เครื่องนี้ยังไม่มีสาเหตุ",detail:"Admin ยังไม่ได้กำหนด Cause ให้เครื่องนี้"});
@@ -290,7 +309,7 @@ function Wizard({profile,onSaved}){
     const a=validationIssues.map(x=>`${x.step}:${x.label}`).join("|");
     const b=refreshed.map(x=>`${x.step}:${x.label}`).join("|");
     if(a!==b)setValidationIssues(refreshed);
-  },[form,files,machinePoints.length,machineProblems.length,machineCauses.length,machineActions.length,freeMachineProblem,freeCauseAction]);
+  },[form,files,machinePoints.length,machineProblems.length,machineCauses.length,machineActions.length,freeMachineProblem,freeCauseAction,isIJInjection,isIJMaterialLeak]);
   useEffect(()=>{if(validationIssues.length&&typeof navigator!=="undefined"&&navigator.vibrate)navigator.vibrate([80,45,80])},[validationIssues.length]);
   function next(){const issues=issuesForStep(step);if(issues.length){setValidationIssues(issues);setMessage("");return}setValidationIssues([]);setMessage("");setQuery("");setStep(s=>Math.min(6,s+1));window.scrollTo({top:0,behavior:"smooth"})}
   function back(){setValidationIssues([]);setMessage("");setStep(s=>Math.max(1,s-1));window.scrollTo({top:0,behavior:"smooth"})}
@@ -329,13 +348,14 @@ function Wizard({profile,onSaved}){
       if(started&&finished&&new Date(finished)<new Date(started)){const d=new Date(finished);d.setDate(d.getDate()+1);finished=d.toISOString()}
       const payload={
         id:reportId,machine_id:form.machine_id,machine_group_id:form.group_id,
-        area_point_id:form.area_point_id||null,area_point_snapshot:freeMachineProblem?clean(form.area_point_text)||null:selectedPoint?.point_name||null,
-        problem_id:form.problem_id||null,symptom:form.problem_id?(selectedProblem?.problem_name||""):clean(form.symptom),
-        problem_type:form.problem_id?(selectedProblem?.breakdown_type||null):null,
+        area_point_id:isIJInjection?null:(form.area_point_id||null),area_point_snapshot:isIJInjection?(selectedIJComponent?.name_th||null):(freeMachineProblem?clean(form.area_point_text)||null:selectedPoint?.point_name||null),
+        problem_id:isIJInjection?null:(form.problem_id||null),symptom:isIJInjection?(selectedIJSymptom?.name_th||""):(form.problem_id?(selectedProblem?.problem_name||""):clean(form.symptom)),
+        problem_type:isIJInjection?(selectedIJZone?.name_th||null):(form.problem_id?(selectedProblem?.breakdown_type||null):null),
+        ij_zone_code:isIJInjection?form.ij_zone_code:null,ij_component_code:isIJInjection?form.ij_component_code:null,ij_symptom_code:isIJInjection?form.ij_symptom_code:null,ij_material_leak_mold_model:isIJMaterialLeak?clean(form.ij_mold_model)||null:null,
         cause_id:form.cause_id||null,cause:form.cause_id?(selectedCause?.cause_name||""):clean(form.cause),
         action_id:form.action_id||null,action_taken:form.action_id?(selectedAction?.action_name||""):clean(form.action_taken),
         severity:form.severity,status:form.status,spare_parts:clean(form.spare_parts)||null,
-        started_at:started,finished_at:finished||null,remark:clean(form.remark)||null
+        started_at:started,finished_at:finished||null,remark:isIJMaterialLeak?`Mold Model: ${clean(form.ij_mold_model)}${clean(form.remark)?` | ${clean(form.remark)}`:""}`:(clean(form.remark)||null)
       };
       setSaveStage("กำลังบันทึกรายงานลงฐานข้อมูล…");
       await rpc("mvr_create_repair_report",{p_report:payload,p_images:uploaded});
@@ -379,7 +399,34 @@ function Wizard({profile,onSaved}){
           <div className="context-chip"><span>หมายเลขเครื่อง</span><b className="mono">{selectedMachine?.machine_no||"-"}</b></div>
           <div className="context-chip"><span>ไลน์ผลิต</span><b>{selectedMachine?.production_line||"-"}</b></div>
         </div>
-        {!freeMachineProblem?<div className="analysis-select-grid compact-select-grid">
+        {isIJInjection?<div className="analysis-select-grid compact-select-grid ij-structured-master">
+          <section className="choice-panel soft">
+            <div className="choice-panel-head compact"><div><h4>โซน / ระบบของเครื่อง <span className="req">*</span></h4><p>เลือกตามโครงสร้างเครื่อง Injection ของแผนก IJ</p></div><span className="choice-count mono">{ijZones.length} ระบบ</span></div>
+            <div className="field"><SearchSelect className="professional-select" value={form.ij_zone_code} onChange={v=>setForm(f=>({...f,ij_zone_code:v,ij_component_code:"",ij_symptom_code:"",ij_mold_model:""}))} placeholder="เลือกโซน / ระบบของเครื่อง" searchPlaceholder="ค้นหาระบบ…" options={ijZones.map(z=>({value:z.code,label:z.name_th,sub:z.name_en}))}/></div>
+            {selectedIJZone&&<div className="selected-preview-card"><span>ระบบที่เลือก</span><b>{selectedIJZone.name_th}</b><small>{selectedIJZone.name_en}</small></div>}
+          </section>
+          <section className="choice-panel soft">
+            <div className="choice-panel-head compact"><div><h4>อุปกรณ์ / จุดเสีย <span className="req">*</span></h4><p>ตัวเลือกจะเปลี่ยนตามระบบด้านซ้าย</p></div><span className="choice-count mono">{visibleIJComponents.length} จุด</span></div>
+            <div className="field"><SearchSelect className="professional-select" value={form.ij_component_code} onChange={v=>setForm(f=>({...f,ij_component_code:v,ij_symptom_code:"",ij_mold_model:""}))} disabled={!form.ij_zone_code} placeholder={form.ij_zone_code?"เลือกอุปกรณ์ / จุดเสีย":"เลือกระบบก่อน"} searchPlaceholder="ค้นหาอุปกรณ์…" options={visibleIJComponents.map(c=>({value:c.code,label:c.name_th,sub:c.name_en}))}/></div>
+            {selectedIJComponent&&<div className="selected-preview-card"><span>จุดที่เลือก</span><b>{selectedIJComponent.name_th}</b><small>{selectedIJComponent.name_en}</small></div>}
+          </section>
+          <section className="choice-panel soft full-width-ij-symptom">
+            <div className="choice-panel-head compact"><div><h4>อาการเสีย <span className="req">*</span></h4><p>ใช้ Master กลางของ IJ เพื่อให้ข้อมูลวิเคราะห์ต่อได้ตรงกัน</p></div><span className="choice-count mono">{ijSymptoms.length} อาการ</span></div>
+            <div className="field"><SearchSelect className="professional-select" value={form.ij_symptom_code} onChange={v=>{
+              const next=ijSymptoms.find(x=>x.code===v);
+              setForm(f=>({...f,ij_symptom_code:v,ij_mold_model:""}));
+              setMessage("");
+              if(next?.requires_mold_model){
+                setValidationIssues([{step:3,label:"Material Leak ต้องระบุโมลที่เกิดการรั่ว",detail:"กรอก รุ่นโมล / Mold No. ของโมลที่ติดตั้งบนเครื่องตอนเกิด Material Leak เช่น M-650-09 หรือ GR-B22 (ไม่ใช่รุ่นเครื่อง Injection)"}]);
+              }else{setValidationIssues([])}
+            }} disabled={!form.ij_component_code} placeholder={form.ij_component_code?"เลือกอาการเสีย":"เลือกอุปกรณ์ก่อน"} searchPlaceholder="ค้นหาอาการ…" options={ijSymptoms.map(x=>({value:x.code,label:x.name_th,sub:x.name_en}))}/></div>
+            {selectedIJSymptom&&<div className={`selected-preview-card accent ${selectedIJSymptom.requires_mold_model?"material-leak":""}`}><span>อาการที่เลือก</span><b>{selectedIJSymptom.name_th}</b><small>{selectedIJSymptom.name_en}</small></div>}
+            {isIJMaterialLeak&&<>
+              <div className="controlled-master-note material-leak-note"><b>⚠ ต้องกรอกข้อมูลโมลก่อนดำเนินการต่อ</b><span>ให้ใส่ <strong>รุ่นโมล / Mold No.</strong> ของโมลที่กำลังติดตั้งบนเครื่องตอนเกิด Material Leak — <strong>ไม่ใช่รุ่นเครื่อง Injection</strong></span></div>
+              <div className="material-leak-required-card" style={{marginTop:12}}><div><b>โมลที่เกิด Material Leak <span className="req">*</span></b><p>ตัวอย่าง: Mold No. M-650-09, GR-B22 หรือรหัสโมลที่ Production ใช้เรียก</p></div><div className="field"><label>รุ่นโมล / Mold No. <span className="req">*</span></label><input className="input" value={form.ij_mold_model} onChange={e=>{patch("ij_mold_model",e.target.value);if(clean(e.target.value))setValidationIssues(x=>x.filter(i=>!i.label.includes("Material Leak")))}} placeholder="เช่น M-650-09 / GR-B22"/></div></div>
+            </>}
+          </section>
+        </div>:!freeMachineProblem?<div className="analysis-select-grid compact-select-grid">
           <section className="choice-panel soft">
             <div className="choice-panel-head compact">
               <div><h4>จุดที่เสีย <span className="req">*</span></h4><p>เลือกตำแหน่งหรือจุดที่พบปัญหาบนเครื่องจักร</p></div>
@@ -421,6 +468,7 @@ function Wizard({profile,onSaved}){
       {step===5&&<>
         <CardTitle icon="clock" title="เวลา ผลหลังซ่อม และรูปภาพการซ่อม" sub="กรอกเวลา เลือกผลหลังซ่อม และแนบรูปบังคับครบ 3 รูปก่อนเข้าสู่หน้าทบทวน"/>
         <div className="field-grid cols-4"><div className="field"><label>วันที่ซ่อม</label><input className="input" type="date" value={form.repair_date} onChange={e=>patch("repair_date",e.target.value)}/></div><div className="field"><label>เวลาเริ่ม <span className="req">*</span></label><input className="input mono" type="time" value={form.start_time} onChange={e=>patch("start_time",e.target.value)}/></div><div className="field"><label>เวลาซ่อมเสร็จ</label><input className="input mono" type="time" value={form.end_time} onChange={e=>patch("end_time",e.target.value)}/></div><div className="field"><label>Loss Time</label><div className={`computed-box ${loss>=60?"warn":""}`}><b className="mono">{loss}</b><span>นาที</span></div></div></div>
+        {isIJMaterialLeak&&<div className="material-leak-required-card" style={{marginTop:12}}><div><b>Material Leak — ยืนยันข้อมูลโมล <span className="req">*</span></b><p>โมลที่เกิดการรั่ว: <strong>{form.ij_mold_model||"ยังไม่ได้กรอก"}</strong> · ต้องเป็นรุ่น/รหัสโมล ไม่ใช่รุ่นเครื่อง Injection</p></div><div className="field"><label>รุ่นโมล / Mold No. <span className="req">*</span></label><input className="input" value={form.ij_mold_model} onChange={e=>patch("ij_mold_model",e.target.value)} placeholder="เช่น M-650-09 / GR-B22"/></div></div>}
         <div className="field-grid cols-3" style={{marginTop:12}}><div className="field"><label>ผลหลังซ่อม <span className="req">*</span></label><SearchSelect value={form.status} onChange={v=>patch("status",v)} placeholder="เลือกผลหลังซ่อม" searchable={false} options={STATUS_OPTIONS.map(([value,label])=>({value,label}))}/></div><div className="field"><label>อะไหล่ที่ใช้</label><input className="input" value={form.spare_parts} onChange={e=>patch("spare_parts",e.target.value)} placeholder="เช่น Heater / Sensor / O-Ring x2"/></div><div className="field"><label>หมายเหตุ</label><input className="input" value={form.remark} onChange={e=>patch("remark",e.target.value)} placeholder="ติดตามต่อ / รออะไหล่ / ข้อมูลเพิ่มเติม"/></div></div>
 
         <div className="upload-section-head"><div><div className="wizard-question">รูปภาพการซ่อม <span className="req">*</span></div><p>ต้องแนบครบทั้ง 3 รูปทุกครั้งก่อนส่งรายงาน</p></div><span className={`upload-complete-badge ${requiredImagesOK()?"done":""}`}><Icon name={requiredImagesOK()?"check":"warning"} size={15}/>{Object.values(files).filter(Boolean).length}/3 รูป</span></div>
@@ -434,11 +482,11 @@ function Wizard({profile,onSaved}){
           <div className="review-grid two-col">
             <div><span>ช่าง</span><b>{profile.full_name}</b></div><div><span>กลุ่มเครื่อง</span><b>{selectedGroup?.group_name||"-"}</b></div>
             <div><span>เครื่อง</span><b className="mono">{selectedMachine?.machine_no||"-"}</b><small>{selectedMachine?.machine_name||"-"}</small></div><div><span>ไลน์ผลิต</span><b>{selectedMachine?.production_line||"-"}</b></div>
-            <div><span>จุดเสีย</span><b>{selectedPoint?.point_name||form.area_point_text||"-"}</b></div><div><span>อาการ</span><b>{selectedProblem?.problem_name||form.symptom||"-"}</b></div>
+            <div><span>{isIJInjection?"ระบบ / จุดเสีย":"จุดเสีย"}</span><b>{isIJInjection?`${selectedIJZone?.name_th||"-"} › ${selectedIJComponent?.name_th||"-"}`:(selectedPoint?.point_name||form.area_point_text||"-")}</b></div><div><span>อาการ</span><b>{isIJInjection?(selectedIJSymptom?.name_th||"-"):(selectedProblem?.problem_name||form.symptom||"-")}</b></div>
             <div><span>ความรุนแรง</span><b>{severityLabel(form.severity)}</b></div><div><span>ผลหลังซ่อม</span><b>{statusLabel(form.status)}</b></div>
             <div><span>สาเหตุ</span><b>{selectedCause?.cause_name||form.cause||"-"}</b></div><div><span>วิธีแก้ไข</span><b>{selectedAction?.action_name||form.action_taken||"-"}</b></div>
             <div><span>เวลาเริ่ม/จบ</span><b className="mono">{form.start_time||"-"} - {form.end_time||"-"}</b></div><div><span>Loss Time</span><b className="mono">{loss} นาที</b></div>
-            <div className="full"><span>หมายเหตุ</span><b>{form.remark||"-"}</b></div>
+            <div className="full"><span>หมายเหตุ</span><b>{isIJMaterialLeak?`Mold Model: ${form.ij_mold_model}${form.remark?` | ${form.remark}`:""}`:(form.remark||"-")}</b></div>
           </div>
           <div className="review-photos"><div className="review-photos-head"><b>รูปประกอบ</b><span>{Object.values(files).filter(Boolean).length} รูป</span></div><div className="review-photos-grid">{[["Before","ก่อนซ่อม"],["Evidence","จุดเสีย"],["After","หลังซ่อม"]].map(([type,label])=>files[type]?<div key={type} className="review-photo-item"><img src={URL.createObjectURL(files[type])} alt={label}/><span>{label}</span></div>:<div key={type} className="review-photo-item empty"><Icon name="image" size={22}/><span>{label}</span><small>ยังไม่ได้แนบ</small></div>)}</div></div>
         </div>
@@ -635,7 +683,7 @@ function History({profile,refreshToken=0}){
     readAll?sb.from("app_profiles").select("id,full_name,employee_code,department_id,photo_path").eq("role","technician").order("full_name"):Promise.resolve({data:[],error:null}),
     readAll?sb.from("departments").select("id,dept_code,dept_name").order("sort_order"):Promise.resolve({data:[],error:null})
   ]);for(const x of [m,t,d])if(x.error)throw x.error;setMachines(m.data||[]);setTechs(t.data||[]);setDepartments(d.data||[]);
-    let q=sb.from("repair_reports").select("id,department_id,machine_id,technician_id,technician_name_snapshot,technician_code_snapshot,technician_photo_path_snapshot,record_no,shift,time_missing,machine_group_id,area_point_id,problem_id,cause_id,action_id,area_point_snapshot,symptom,problem_type,severity,cause,action_taken,spare_parts,status,started_at,finished_at,loss_time_min,remark,machine_no_snapshot,machine_name_snapshot,production_line_snapshot,deleted_at,delete_reason,created_at",{count:"exact"}).order("started_at",{ascending:false}).range(page*pageSize,page*pageSize+pageSize-1);
+    let q=sb.from("repair_reports").select("id,department_id,machine_id,technician_id,technician_name_snapshot,technician_code_snapshot,technician_photo_path_snapshot,record_no,shift,time_missing,machine_group_id,area_point_id,problem_id,cause_id,action_id,area_point_snapshot,symptom,problem_type,severity,cause,action_taken,spare_parts,status,ij_zone_code,ij_zone_name_snapshot,ij_component_code,ij_component_name_snapshot,ij_symptom_code,ij_material_leak_mold_model,started_at,finished_at,loss_time_min,remark,machine_no_snapshot,machine_name_snapshot,production_line_snapshot,deleted_at,delete_reason,created_at",{count:"exact"}).order("started_at",{ascending:false}).range(page*pageSize,page*pageSize+pageSize-1);
     if(filters.machine_id)q=q.eq("machine_id",filters.machine_id);if(filters.technician_id)q=q.eq("technician_id",filters.technician_id);if(filters.department_id)q=q.eq("department_id",filters.department_id);if(filters.status)q=q.eq("status",filters.status);if(filters.mine)q=q.eq("technician_id",profile.id);if(filters.from)q=q.gte("started_at",localDayStartUTC(filters.from));if(filters.to)q=q.lt("started_at",localNextDayStartUTC(filters.to));if(admin&&filters.show_deleted)q=q.not("deleted_at","is",null);else q=q.is("deleted_at",null);if(filters.q){const term=filters.q.replaceAll(","," ");q=q.or(`symptom.ilike.%${term}%,cause.ilike.%${term}%,action_taken.ilike.%${term}%,machine_name_snapshot.ilike.%${term}%,machine_no_snapshot.ilike.%${term}%,area_point_snapshot.ilike.%${term}%,technician_name_snapshot.ilike.%${term}%,technician_code_snapshot.ilike.%${term}%,record_no.ilike.%${term}%`)}
     const {data,error,count}=await q;if(error)throw error;const list=data||[];setTotal(count||0);
     const techPhotoById=Object.fromEntries((t.data||[]).filter(x=>x.photo_path).map(x=>[x.id,x.photo_path]));

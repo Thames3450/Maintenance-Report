@@ -937,3 +937,10 @@ button.settings-item-card:hover,.settings-item-card:focus-within{border-color:#A
 .spare-edit-photo-preview>a.pending-remove>span{background:rgba(183,47,66,.88)}
 .spare-photo-fallback{height:100%;display:grid;place-items:center;color:#9ca7b5;background:#f7f9fb}
 @media(max-width:759px){.spare-edit-photo-preview{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* v2.37 IJ structured repair master */
+.ij-structured-master .full-width-ij-symptom{grid-column:1/-1}
+.selected-preview-card.material-leak{border-color:#ef4444;background:#fff7f7}
+.material-leak-note{border-color:#fecaca!important;background:#fff7f7!important;color:#991b1b!important}
+.material-leak-required-card{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(260px,1fr);gap:16px;align-items:end;padding:16px 18px;border:1px solid #fecaca;background:#fff7f7;border-radius:18px}
+.material-leak-required-card b{color:#991b1b}.material-leak-required-card p{margin:5px 0 0;color:#7f1d1d;font-size:13px;line-height:1.55}
+@media(max-width:760px){.material-leak-required-card{grid-template-columns:1fr}.ij-structured-master{grid-template-columns:1fr!important}}
